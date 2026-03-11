@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.1.6" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.1" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus"
 #define PLUGIN_URL		"https://github.com/ProfOrribilus/source-vehicles"
 
@@ -95,6 +95,7 @@ ArrayList g_VehicleProperties;
 ArrayList g_VehicleSpawnerProperties;
 ArrayList g_ConVars;
 
+bool g_VehiclePassengerModelsEnabled;
 char g_DefaultPlayerModels[2][6][PLATFORM_MAX_PATH];
 
 char g_PlayerModelTeamName[2][PLATFORM_MAX_PATH];
@@ -172,7 +173,7 @@ enum struct VehicleConfig
 			}
 
 			kv.GetString("passenger_model_version", this.passengerModelVersion, sizeof(this.passengerModelVersion));
-			//kv.GetVector("dummy_driver_origin", this.dummyDriverOrigin);
+			
 			kv.GetString("script", this.script, sizeof(this.script));
 			
 			char type[32];
@@ -264,51 +265,114 @@ enum struct VehicleConfig
 				kv.GoBack();
 			}
 
-			//Precaches and adds to downloads table the passengers' models.
-			if (this.is_passenger_visible)
+			// Precaches and adds to downloads table the passenger models' files, if enabled for the current game.
+			if (g_VehiclePassengerModelsEnabled)
 			{
-				bool foundAllPassengersModels = true;
-
-				for (int i = 0; i < 2; i++)
+				if (this.is_passenger_visible)
 				{
-					for (int j = 0; j < 6; j++)
-					{
-						for (int k = 0; k < 2; k++)
-						{
-							if (Format(modelFileName, sizeof(modelFileName), VEHICLEPLAYER_MODELNAME_TEMPLATE, g_PlayerModelTeamName[i], g_PlayerModelClassName[j], this.id, g_ModelVehiclePassengerClassName[k]) > 0)
-							{
-								if (this.passengerModelVersion[0] != EOS)
-								{
-									StrCat(modelFileName, sizeof(modelFileName), "-");
-									StrCat(modelFileName, sizeof(modelFileName), this.passengerModelVersion);
-								}
-								Format(modelFullFileName, sizeof(modelFullFileName), "%s%s", modelFileName, ".mdl");
+					bool foundAllPassengersModels = true;
 
-								if (FileExists(modelFullFileName, true))
+					for (int i = 0; i < 2; i++)
+					{
+						if (!foundAllPassengersModels)
+							break;
+
+						for (int j = 0; j < 6; j++)
+						{
+							if (!foundAllPassengersModels)
+								break;
+
+							for (int k = 0; k < 2; k++)
+							{
+								if (!foundAllPassengersModels)
+									break;
+
+								if (Format(modelFileName, sizeof(modelFileName), VEHICLEPLAYER_MODELNAME_TEMPLATE, g_PlayerModelTeamName[i], g_PlayerModelClassName[j], this.id, g_ModelVehiclePassengerClassName[k]) > 0)
 								{
-									PrecacheModel(modelFullFileName);
+									if (this.passengerModelVersion[0] != EOS)
+									{
+										StrCat(modelFileName, sizeof(modelFileName), "-");
+										StrCat(modelFileName, sizeof(modelFileName), this.passengerModelVersion);
+									}
+
 									for (int l = 0; l < 6; l++)
 									{
 										Format(modelFullFileName, sizeof(modelFullFileName), "%s%s", modelFileName, g_ModelFileExtensions[l]);
-										AddFileToDownloadsTable(modelFullFileName);
+										if (FileExists(modelFullFileName, true))
+										{
+											if (StrContains(modelFullFileName, ".mdl") != -1 && StrContains(modelFullFileName, ".mdl") == (strlen(modelFullFileName) - 4))
+											{
+												if (!PrecacheModel(modelFullFileName))
+												{
+													LogError("Model %s precaching failed", modelFullFileName);
+													foundAllPassengersModels = false;
+													break;
+												}
+											}
+										}
+										else
+										{
+											foundAllPassengersModels = false;
+											break;
+										}
 									}
 								}
 								else
 								{
+									LogError("Vehicle %s's player model name generation failed", this.id);
 									foundAllPassengersModels = false;
+									break;
 								}
-							}
-							else
-							{
-								LogError("Vehicle player model name generation failed");
 							}
 						}
 					}
-				}
 
-				if (!foundAllPassengersModels)
-					LogError("One or more player passenger's models not found for vehicle %s", this.id);
+					if (foundAllPassengersModels)
+					{
+						for (int i = 0; i < 2; i++)
+						{
+							for (int j = 0; j < 6; j++)
+							{
+								for (int k = 0; k < 2; k++)
+								{
+									if (Format(modelFileName, sizeof(modelFileName), VEHICLEPLAYER_MODELNAME_TEMPLATE, g_PlayerModelTeamName[i], g_PlayerModelClassName[j], this.id, g_ModelVehiclePassengerClassName[k]) > 0)
+									{
+										if (this.passengerModelVersion[0] != EOS)
+										{
+											StrCat(modelFileName, sizeof(modelFileName), "-");
+											StrCat(modelFileName, sizeof(modelFileName), this.passengerModelVersion);
+										}
+
+										for (int l = 0; l < 6; l++)
+										{
+											Format(modelFullFileName, sizeof(modelFullFileName), "%s%s", modelFileName, g_ModelFileExtensions[l]);
+											if (FileExists(modelFullFileName, true))
+											{
+												AddFileToDownloadsTable(modelFullFileName);
+											}
+											else
+											{
+												LogError("Failed to add model file %s to download table", modelFullFileName);
+											}
+										}
+									}
+									else
+									{
+										LogError("Vehicle %s's player model name generation failed", this.id);
+									}
+								}
+							}
+						}
+					}
+					else
+					{
+						this.is_passenger_visible = false;
+						LogError("One or more player passenger's model file not found for vehicle %s. Players inside that vehicle will be forced invisible.", this.id);
+					}
+				}
 			}
+			else
+				this.is_passenger_visible = false;
 		}
 	}
 }
@@ -742,6 +806,7 @@ public void OnPluginStart()
 	LoadTranslations("vehicles.phrases");
 	
 	// Create plugin convars
+	CreateConVar("sm_vehicles_version", PLUGIN_VERSION, "Fully functional driveable vehicles", FCVAR_SPONLY|FCVAR_NOTIFY);
 	vehicle_config_path = CreateConVar("vehicle_config_path", "configs/vehicles/vehicles.cfg", "Path to vehicle configuration file, relative to the SourceMod folder.");
 	vehicle_config_path.AddChangeHook(ConVarChanged_ReloadVehicleConfig);
 	vehicle_physics_damage_modifier = CreateConVar("vehicle_physics_damage_modifier", "1.0", "Modifier of impact-based physics damage against other players.", _, true, 0.0);
@@ -765,8 +830,6 @@ public void OnPluginStart()
 	g_VehicleSpawnerProperties = new ArrayList(sizeof(VehicleSpawnerProperties));
 	g_AllVehicles = new ArrayList(sizeof(VehicleConfig));
 	g_ConVars = new ArrayList(sizeof(ConVarData));
-	
-	InitializeVehiclePlayerModelsStrings();
 	
 	GameData gamedata = new GameData("vehicles");
 	if (!gamedata)
@@ -812,19 +875,33 @@ public void OnPluginEnd()
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
-	RegPluginLibrary("vehicles");
-	
-	CreateNative("Vehicle.Create", NativeCall_VehicleCreate);
-	CreateNative("Vehicle.Owner.get", NativeCall_VehicleOwnerGet);
-	CreateNative("Vehicle.Owner.set", NativeCall_VehicleOwnerSet);
-	CreateNative("Vehicle.GetId", NativeCall_VehicleGetId);
-	CreateNative("Vehicle.ForcePlayerIn", NativeCall_VehicleForcePlayerIn);
-	CreateNative("Vehicle.ForcePlayerOut", NativeCall_VehicleForcePlayerOut);
-	CreateNative("GetVehicleName", NativeCall_GetVehicleName);
-	
-	MarkNativeAsOptional("LoadSoundScript");
-	
-	return APLRes_Success;
+
+	switch (GetEngineVersion())
+	{
+		case Engine_DODS, Engine_HL2DM:
+		{
+			RegPluginLibrary("vehicles");
+			
+			CreateNative("Vehicle.Create", NativeCall_VehicleCreate);
+			CreateNative("Vehicle.Owner.get", NativeCall_VehicleOwnerGet);
+			CreateNative("Vehicle.Owner.set", NativeCall_VehicleOwnerSet);
+			CreateNative("Vehicle.GetId", NativeCall_VehicleGetId);
+			CreateNative("Vehicle.ForcePlayerIn", NativeCall_VehicleForcePlayerIn);
+			CreateNative("Vehicle.ForcePlayerOut", NativeCall_VehicleForcePlayerOut);
+			CreateNative("GetVehicleName", NativeCall_GetVehicleName);
+			
+			MarkNativeAsOptional("LoadSoundScript");
+			
+			InitializeGameVariables();
+
+			return APLRes_Success;
+		}
+		default:
+		{
+			strcopy(error, err_max, "Game not supported");
+			return APLRes_Failure;
+		}
+	}
 }
 
 public void OnAllPluginsLoaded()
@@ -860,21 +937,7 @@ public void OnMapStart()
 		HookEvent("dod_round_win", EventHook_PreRoundRestart);
 	}
 	else
-	{
-		// Hook all vehicles
-		int vehicle = -1;
-		while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
-		{
-			Vehicle.Register(vehicle);
-			
-			SDKHook(vehicle, SDKHook_Think, SDKHookCB_PropVehicleDriveable_Think);
-			SDKHook(vehicle, SDKHook_Use, SDKHookCB_PropVehicleDriveable_Use);
-			SDKHook(vehicle, SDKHook_OnTakeDamage, SDKHookCB_PropVehicleDriveable_OnTakeDamage);
-			SDKHook(vehicle, SDKHook_OnTakeDamagePost, SDKHookCB_PropVehicleDriveable_OnTakeDamagePost);
-			
-			DHookVehicle(GetServerVehicle(vehicle));
-		}
-	}
+		HookMapVehicles();
 }
 
 public void OnMapEnd()
@@ -1336,17 +1399,24 @@ void RestoreConVar(const char[] name)
 	}
 }
 
-void InitializeVehiclePlayerModelsStrings()
+void InitializeGameVariables()
 {
-	g_PlayerModelTeamName[0] = "american";
-	g_PlayerModelTeamName[1] = "german";
+	if (GetEngineVersion() == Engine_DODS)
+	{
+		g_PlayerModelTeamName[0] = "american";
+		g_PlayerModelTeamName[1] = "german";
 
-	g_PlayerModelClassName[0] = "rifleman";
-	g_PlayerModelClassName[1] = "assault";
-	g_PlayerModelClassName[2] = "support";
-	g_PlayerModelClassName[3] = "sniper";
-	g_PlayerModelClassName[4] = "mg";
-	g_PlayerModelClassName[5] = "rocket";
+		g_PlayerModelClassName[0] = "rifleman";
+		g_PlayerModelClassName[1] = "assault";
+		g_PlayerModelClassName[2] = "support";
+		g_PlayerModelClassName[3] = "sniper";
+		g_PlayerModelClassName[4] = "mg";
+		g_PlayerModelClassName[5] = "rocket";
+
+		g_VehiclePassengerModelsEnabled = true;
+	}
+	else
+		g_VehiclePassengerModelsEnabled = false;
 
 	g_ModelVehiclePassengerClassName[0] = "driver";
 	g_ModelVehiclePassengerClassName[1] = "shooter";
@@ -2351,6 +2421,9 @@ public void EventHook_RoundActive(Event event, const char[] name, bool dontBroad
 {
 	if (g_ExecRoundStartHookFunction)
 	{
+		HookMapVehicles();
+
+		// Spawn all the vehicles listed in map's related TXT file
 		KeyValues kvVehicleSpawners;
 		char currentLevelName[64];
 		char fileName[PLATFORM_MAX_PATH];
@@ -3083,6 +3156,23 @@ void DHookClient(int client)
 		g_DHookLeaveVehicle.HookEntity(Hook_Post, client, DHookCallback_LeaveVehicle);
 
 	SDKHook(client, SDKHook_OnTakeDamage, SDKHookCB_Client_OnTakeDamage);
+}
+
+// Activate all the vehicles placed in the map by its mapmaker
+void HookMapVehicles()
+{
+	int vehicle = -1;
+	while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
+	{
+		Vehicle.Register(vehicle);
+		
+		SDKHook(vehicle, SDKHook_Think, SDKHookCB_PropVehicleDriveable_Think);
+		SDKHook(vehicle, SDKHook_Use, SDKHookCB_PropVehicleDriveable_Use);
+		SDKHook(vehicle, SDKHook_OnTakeDamage, SDKHookCB_PropVehicleDriveable_OnTakeDamage);
+		SDKHook(vehicle, SDKHook_OnTakeDamagePost, SDKHookCB_PropVehicleDriveable_OnTakeDamagePost);
+		
+		DHookVehicle(GetServerVehicle(vehicle));
+	}
 }
 
 void DHookVehicle(Address serverVehicle)
