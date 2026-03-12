@@ -108,7 +108,6 @@ bool g_ClientIsUsingHorn[MAXPLAYERS + 1];
 int g_ClientIsInVehicleAsDriver[MAXPLAYERS + 1];
 int g_ClientIsInVehicleAsShooter[MAXPLAYERS + 1];
 bool g_ClientHasVehicleUseDisabled[MAXPLAYERS + 1];
-bool g_ClientHasEyesForced[MAXPLAYERS + 1];
 
 int g_CollisionGroupDefault = -1;
 float g_VecViewOffsetDefault[3];
@@ -490,18 +489,6 @@ methodmap Player
 		public set(bool value)
 		{
 			g_ClientHasVehicleUseDisabled[this._client] = value;
-		}
-	}
-	
-	property bool HasEyesForced // Used to store if a passenger's aiming has to be forced inside a restricted cone.
-	{
-		public get()
-		{
-			return g_ClientHasEyesForced[this._client];
-		}
-		public set(bool value)
-		{
-			g_ClientHasEyesForced[this._client] = value;
 		}
 	}
 
@@ -1562,7 +1549,6 @@ void GetShooterOutFromVehicle(int shooter, bool forced)
 					bool IsExitPointFound = CheckExitPoint(vecVehicleExitOrigin, vecVehicleExitAngles, g_playerMins, g_playerMaxs, exitPoint);
 					if (IsExitPointFound || forced)
 					{
-						Player(shooter).HasEyesForced = false;
 						AcceptEntityInput(shooter, "ClearParent");
 						SetEntPropFloat(shooter, Prop_Send, "m_vecViewOffset[0]", g_VecViewOffsetDefault[0]);
 						SetEntPropFloat(shooter, Prop_Send, "m_vecViewOffset[1]", g_VecViewOffsetDefault[1]);
@@ -1750,7 +1736,6 @@ void RequestFrameCallback_LeaveVehicle(int exDriver)
 	int vehicle = Player(exDriver).VehicleIsInAsDriver;
 
 	Player(exDriver).VehicleIsInAsDriver = -1;
-	Player(exDriver).HasEyesForced = false;
 
 	if (Vehicle(vehicle).DummyDriver != -1)
 	{
@@ -2010,13 +1995,6 @@ public Action Timer_PrintVehicleKeyHint(Handle timer, int vehicleRef)
 public Action Timer_RestoreUseOnVehicleForShooter(Handle timer, int client)
 {
 	Player(client).HasVehicleUseDisabled = false;
-	
-	return Plugin_Continue;
-}
-
-public Action Timer_EnabledClientEyesForced(Handle timer, int client)
-{
-	Player(client).HasEyesForced = true;
 	
 	return Plugin_Continue;
 }
