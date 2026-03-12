@@ -1038,32 +1038,35 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		}
 	}
 	
-	if (Player(client).VehicleIsInAsShooter != -1)
+	if (GetEngineVersion() == Engine_DODS)
 	{
-		if (buttons & IN_ATTACK) // Prevents nades to be launched from vehicle because the launch direction is bugged.
+		if (Player(client).VehicleIsInAsShooter != -1)
 		{
-			char weaponName[32];
-			GetClientWeapon(client, weaponName, sizeof(weaponName));
-			
-			if (StrEqual(weaponName, "weapon_riflegren_us") || StrEqual(weaponName, "weapon_smoke_us") || StrEqual(weaponName, "weapon_frag_us") || StrEqual(weaponName, "weapon_bazooka") ||
-				StrEqual(weaponName, "weapon_riflegren_ger") || StrEqual(weaponName, "weapon_smoke_ger") || StrEqual(weaponName, "weapon_frag_ger") || StrEqual(weaponName, "weapon_pschreck"))
-				buttons = buttons & ~(buttons & IN_ATTACK);
-			
-			actionToReturn = Plugin_Changed;
-		}
+			if (buttons & IN_ATTACK) // Prevents nades to be launched from vehicle because the launch direction is bugged.
+			{
+				char weaponName[32];
+				GetClientWeapon(client, weaponName, sizeof(weaponName));
+				
+				if (StrEqual(weaponName, "weapon_riflegren_us") || StrEqual(weaponName, "weapon_smoke_us") || StrEqual(weaponName, "weapon_frag_us") || StrEqual(weaponName, "weapon_bazooka") ||
+					StrEqual(weaponName, "weapon_riflegren_ger") || StrEqual(weaponName, "weapon_smoke_ger") || StrEqual(weaponName, "weapon_frag_ger") || StrEqual(weaponName, "weapon_pschreck"))
+					buttons = buttons & ~(buttons & IN_ATTACK);
+				
+				actionToReturn = Plugin_Changed;
+			}
 
-		if (buttons & IN_ATTACK2) // Prevents MGs to be deployed in vehicle because it doesn't work.
-		{
-			char weaponName[32];
-			GetClientWeapon(client, weaponName, sizeof(weaponName));
-			
-			if (StrEqual(weaponName, "weapon_30cal") || StrEqual(weaponName, "weapon_mg42"))
-				buttons = buttons & ~(buttons & IN_ATTACK2);
-			
-			actionToReturn = Plugin_Changed;
+			if (buttons & IN_ATTACK2) // Prevents MGs to be deployed in vehicle because it doesn't work.
+			{
+				char weaponName[32];
+				GetClientWeapon(client, weaponName, sizeof(weaponName));
+				
+				if (StrEqual(weaponName, "weapon_30cal") || StrEqual(weaponName, "weapon_mg42"))
+					buttons = buttons & ~(buttons & IN_ATTACK2);
+				
+				actionToReturn = Plugin_Changed;
+			}
 		}
 	}
-		
+
 	return actionToReturn;
 }
 
