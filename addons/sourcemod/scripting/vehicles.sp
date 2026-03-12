@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.3" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.6" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus"
 #define PLUGIN_URL		"https://github.com/ProfOrribilus/source-vehicles"
 
@@ -129,6 +129,7 @@ enum struct VehicleConfig
 	char key_hint[256];								/**< Vehicle key hint */
 	float lock_speed;								/**< Vehicle lock speed */
 	bool is_passenger_visible;						/**< Whether the passenger is visible */
+	bool are_exitpoints_eyes;						/**< If true, the exit points must be considered the player's view position; if false, the player's feets position */
 	char horn_sound[PLATFORM_MAX_PATH];				/**< Custom horn sound */
 	
 	void ReadConfig(KeyValues kv)
@@ -228,6 +229,7 @@ enum struct VehicleConfig
 			this.lock_speed = kv.GetFloat("lock_speed", 10.0);
 			kv.GetString("key_hint", this.key_hint, sizeof(this.key_hint));
 			this.is_passenger_visible = kv.GetNum("is_passenger_visible", true) != 0;
+			this.are_exitpoints_eyes = kv.GetNum("are_exitpoints_eyes", true) != 0;
 			
 			kv.GetString("horn_sound", this.horn_sound, sizeof(this.horn_sound));
 			if (this.horn_sound[0] != EOS)
@@ -1474,8 +1476,8 @@ bool GetShooterInVehicle(int shooter, int vehicle)
 	}
 }
 
-// An alternative to the game's CheckExitPoint function
-bool CheckExitPoint(float vecStartPosition[3], float vecStartAngles[3], float vecSoldierMins[3], float vecSoldierMaxs[3], float vecFoundExitPoint[3])
+// A custom CheckExitPoint function
+bool CheckExitPoint(float vecStartPosition[3], float vecStartAngles[3], float vecSoldierMins[3], float vecSoldierMaxs[3], bool areExitpointsEyes, float vecFoundExitPoint[3])
 {
 	float soldierHeight;
 	float soldierWidth;
@@ -1493,6 +1495,14 @@ bool CheckExitPoint(float vecStartPosition[3], float vecStartAngles[3], float ve
 	soldierWidth = (vecSoldierMaxs[0] - vecSoldierMins[0]);
 	
 	vecTraceStartOffset[2] = (soldierHeight / 2);
+	if (areExitpointsEyes)
+	{
+		float vecViewOffsetApplier[3];
+		vecViewOffsetApplier[0] = g_VecViewOffsetDefault[0];
+		vecViewOffsetApplier[1] = g_VecViewOffsetDefault[1];
+		vecViewOffsetApplier[2] = (g_VecViewOffsetDefault[2] * -1);
+		AddVectors(vecTraceStartOffset, vecViewOffsetApplier, vecTraceStartOffset);
+	}
 
 	GetAngleVectors(vecStartAngles, vecVehicleBackwardDirection, NULL_VECTOR, vecVehicleUpDirection);
 	NegateVector(vecVehicleBackwardDirection);
@@ -1545,8 +1555,11 @@ void GetShooterOutFromVehicle(int shooter, bool forced)
 			{
 				if (GetEntityAttachment(vehicle, LookupEntityAttachment(vehicle, attachments[i]), vecVehicleExitOrigin, vecVehicleExitAngles))
 				{
+					VehicleConfig vehicleConfig;
+					GetConfigByVehicleEnt(vehicle, vehicleConfig);
+
 					float exitPoint[3];
-					bool IsExitPointFound = CheckExitPoint(vecVehicleExitOrigin, vecVehicleExitAngles, g_playerMins, g_playerMaxs, exitPoint);
+					bool IsExitPointFound = CheckExitPoint(vecVehicleExitOrigin, vecVehicleExitAngles, g_playerMins, g_playerMaxs, vehicleConfig.are_exitpoints_eyes, exitPoint);
 					if (IsExitPointFound || forced)
 					{
 						AcceptEntityInput(shooter, "ClearParent");
@@ -1566,8 +1579,6 @@ void GetShooterOutFromVehicle(int shooter, bool forced)
 						Player(shooter).VehicleIsInAsShooter = -1;
 						Player(shooter).HasVehicleUseDisabled = false;
 						
-						VehicleConfig vehicleConfig;
-						GetConfigByVehicleEnt(vehicle, vehicleConfig);
 						if (vehicleConfig.is_passenger_visible)
 							RevertClientModelToDefault(shooter);
 
@@ -1776,7 +1787,7 @@ void RequestFrameCallback_LeaveVehicle(int exDriver)
 				}
 
 				float exitPoint[3];
-				bool IsExitPointFound = CheckExitPoint(vehicleExitOrigin, vehicleExitAngles, g_playerMins, g_playerMaxs, exitPoint);
+				bool IsExitPointFound = CheckExitPoint(vehicleExitOrigin, vehicleExitAngles, g_playerMins, g_playerMaxs, vehicleConfig.are_exitpoints_eyes, exitPoint);
 				if (IsExitPointFound)
 				{			
 					exitPoint[2] = exitPoint[2] + 12.0;
@@ -2711,8 +2722,11 @@ public void SDKHookCB_VehicleDamageDealer_TouchPost(int entity, int other)
 					{
 						if (GetEntityAttachment(vehicle, LookupEntityAttachment(vehicle, attachments[i]), vecVehicleExitOrigin, vecVehicleExitAngles))
 						{
+							VehicleConfig vehicleConfig;
+							GetConfigByVehicleEnt(vehicle, vehicleConfig);
+
 							float exitPoint[3];
-							bool IsExitPointFound = CheckExitPoint(vecVehicleExitOrigin, vecVehicleExitAngles, g_playerMins, g_playerMaxs, exitPoint);
+							bool IsExitPointFound = CheckExitPoint(vecVehicleExitOrigin, vecVehicleExitAngles, g_playerMins, g_playerMaxs, vehicleConfig.are_exitpoints_eyes, exitPoint);
 							if (IsExitPointFound)
 							{
 								exitPoint[2] = exitPoint[2] + 12.0;
