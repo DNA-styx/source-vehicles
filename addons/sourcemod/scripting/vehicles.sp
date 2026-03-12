@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.1" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.3" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus"
 #define PLUGIN_URL		"https://github.com/ProfOrribilus/source-vehicles"
 
@@ -88,7 +88,6 @@ Handle g_SDKCallHandleEntryExitFinish;
 Handle g_SDKCallStudioFrameAdvance;
 Handle g_SDKCallGetInVehicle;
 Handle g_SDKCallSetParent;
-Handle g_SDKCallSnapEyeAngles;
 
 ArrayList g_AllVehicles;
 ArrayList g_VehicleProperties;
@@ -856,7 +855,6 @@ public void OnPluginStart()
 	g_SDKCallStudioFrameAdvance = PrepSDKCall_StudioFrameAdvance(gamedata);
 	g_SDKCallGetInVehicle = PrepSDKCall_GetInVehicle(gamedata);
 	g_SDKCallSetParent = PrepSDKCall_SetParent(gamedata);
-	g_SDKCallSnapEyeAngles = PrepSDKCall_SnapEyeAngles(gamedata);
 
 	delete gamedata;
 	
@@ -1068,19 +1066,6 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	}
 
 	return actionToReturn;
-}
-
-
-public void OnPlayerRunCmdPost(int client, int buttons, int impulse, const float vel[3], const float angles[3], int weapon, int subtype, int cmdnum, int tickcount, int seed, const int mouse[2])
-{	
-	if (Player(client).HasEyesForced) // If enabled, forces player aiming in a restricted cone.
-	{
-		float vehicleLocalEyesOrigin[3];
-		float vehicleLocalEyesAngles[3];
-		
-		if (SDKCall_GetAttachmentLocal(Player(client).VehicleIsInAsShooter, LookupEntityAttachment(Player(client).VehicleIsInAsShooter, "vehicle_shooter_eyes"), vehicleLocalEyesOrigin, vehicleLocalEyesAngles))
-			ForceClientEyeDirectionInCone(client, vehicleLocalEyesAngles, angles, 89.0);
-	}
 }
 				
 public void OnEntityCreated(int entity, const char[] classname)
@@ -1465,29 +1450,6 @@ void RevertClientModelToDefault(int client)
 		SetEntityModel(client, g_DefaultPlayerModels[clientTeam][clientClass]);
 }
 
-void ForceClientEyeDirectionInCone(int client, float vehicleClientLocalEyesAngles[3], const float clientDesiredAngles[3], float coneAngle)
-{
-	float desiredClientEyesDirection[3];
-	float vehicleClientEyesDirection[3];
-	float vehicleClientEyesUpDirection[3];
-	
-	GetAngleVectors(clientDesiredAngles, desiredClientEyesDirection, NULL_VECTOR, NULL_VECTOR);
-	GetAngleVectors(vehicleClientLocalEyesAngles, vehicleClientEyesDirection, NULL_VECTOR, vehicleClientEyesUpDirection);				
-	
-	if (!IsVectorInCone(desiredClientEyesDirection, vehicleClientEyesDirection, coneAngle))
-	{
-		float lerpedClientEyesDirection[3];
-		float lerpedClientEyesAngles[3];
-		
-		float angle = AngleBetweenVectors(vehicleClientEyesDirection, desiredClientEyesDirection);
-		angle = RadToDeg(angle);
-		VectorsLerp(vehicleClientEyesDirection, desiredClientEyesDirection, (coneAngle / angle), lerpedClientEyesDirection);
-		GetVectorAngles(lerpedClientEyesDirection, lerpedClientEyesAngles);
-		
-		SDKCall_SnapEyeAngles(client, lerpedClientEyesAngles); // Used SnapEyeAngles instead of TeleportEntity because the latter interrupts player commands like weapon firing.
-	}
-}
-
 // Makes a player enter a vehicle as second passenger.
 bool GetShooterInVehicle(int shooter, int vehicle)
 {
@@ -1758,44 +1720,6 @@ void SpawnExplosiveForVehicle(int vehicle)
 		}
 		
 	}
-}
-
-// Checks if 'angles' rotation values are comprised in a cone having 'coneAngles' rotation values and
-// an amplitude expressed as cos('coneDegree') where 'conDegree' is the amplitude expressed as degrees.
-// So, if 'cosConeAngle' is 1.0, the cone will correspond to the forward vector of 'coneAngles'; if 'cosConeAngle' is 0, the cone will have an amplitude of 90 degrees.
-bool IsVectorInCone(float vector[3], float vectorCone[3], float coneAngle)
-{
-	float cosConeAngle;
-	cosConeAngle = Cosine(DegToRad(coneAngle));
-	
-	/*
-	float vecAnglesForwardDirection[3];
-	GetAngleVectors(angles, vecAnglesForwardDirection, NULL_VECTOR, NULL_VECTOR);
-	float vecConeAnglesForwardDirection[3];
-	GetAngleVectors(coneAngles, vecConeAnglesForwardDirection, NULL_VECTOR, NULL_VECTOR);
-	*/
-	
-	return (GetVectorDotProduct(vector, vectorCone) > cosConeAngle);
-}
-
-void VectorsLerp(float vec1[3], float vec2[3], float alpha, float vecResult[3])
-{
-	float vecDistance[3];
-	
-	SubtractVectors(vec2, vec1, vecDistance);
-	ScaleVector(vecDistance, alpha);
-	AddVectors(vec1, vecDistance, vecResult);
-}
-
-float GetVectorMagnitude(float vector[3])
-{
-	return SquareRoot(Pow(vector[0], 2.0) + Pow(vector[1], 2.0) + Pow(vector[2], 2.0));
-}
-
-float AngleBetweenVectors(float vec1[3], float vec2[3])
-{	
-	
-	return ArcCosine(GetVectorDotProduct(vec1, vec2) / (GetVectorMagnitude(vec1) * GetVectorMagnitude(vec2)));
 }
 
 void StopGameSoundFromEntity(char gamesound[PLATFORM_MAX_PATH], int entity)
@@ -3574,19 +3498,6 @@ Handle PrepSDKCall_SetParent(GameData gamedata)
 	return call;
 }
 
-Handle PrepSDKCall_SnapEyeAngles(GameData gamedata)
-{
-	StartPrepSDKCall(SDKCall_Player);
-	PrepSDKCall_SetFromConf(gamedata, SDKConf_Signature, "CBasePlayer::SnapEyeAngles");
-	PrepSDKCall_AddParameter(SDKType_QAngle, SDKPass_Pointer);
-	
-	Handle call = EndPrepSDKCall();
-	if (!call)
-		LogError("Failed to create SDK call: CBasePlayer::SnapEyeAngles");
-	
-	return call;
-}
-
 void SDKCall_VehicleSetupMove(Address serverVehicle, int client, Address ucmd, Address helper, Address move)
 {
 	if (g_SDKCallVehicleSetupMove)
@@ -3655,10 +3566,4 @@ void SDKCall_SetParent(int entity, int parent, int attachment)
 {
 	if (g_SDKCallSetParent)
 		SDKCall(g_SDKCallSetParent, entity, parent, attachment);
-}
-
-void SDKCall_SnapEyeAngles(int player, float angles[3])
-{
-	if (g_SDKCallSnapEyeAngles)
-		SDKCall(g_SDKCallSnapEyeAngles, player, angles);
 }
