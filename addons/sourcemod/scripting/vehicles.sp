@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.6" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.7" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus"
 #define PLUGIN_URL		"https://github.com/ProfOrribilus/source-vehicles"
 
@@ -1706,10 +1706,20 @@ void SpawnExplosiveForVehicle(int vehicle)
 			SetVariantString("!activator");
 			AcceptEntityInput(explosive, "SetParent", vehicle);
 
-			char attachmentName[] = "explosion";
-			if ((LookupEntityAttachment(vehicle, attachmentName)) > 0)
+			char attachmentName[][] = { "explosion", "vehicle_engine" };
+			int indexAttachmentName = -1;
+			for (int i = 0; i < sizeof(attachmentName); i++)
 			{
-				SetVariantString(attachmentName);
+				if ((LookupEntityAttachment(vehicle, attachmentName[i])) > 0)
+				{
+					indexAttachmentName = i;
+					break;
+				}
+			}
+
+			if (indexAttachmentName != -1)
+			{
+				SetVariantString(attachmentName[indexAttachmentName]);
 				AcceptEntityInput(explosive, "SetParentAttachment");
 			}
 
