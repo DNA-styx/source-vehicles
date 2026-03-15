@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.13" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.14" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus"
 #define PLUGIN_URL		"https://github.com/ProfOrribilus/source-vehicles"
 
@@ -3346,7 +3346,7 @@ public MRESReturn DHookCallback_PushEntity(int pusher, DHookParam params)
 				vehicleSpeed = GetVectorLength(vehicleVelocity);
 				int clientGround = GetEntPropEnt(client, Prop_Send, "m_hGroundEntity");
 
-				if (vehicleSpeed <= 1.0 || clientGround == -1)
+				if (vehicleSpeed <= 6.0 || clientGround == -1)
 				{
 					returnValue = MRES_Supercede; // Skip push because vehicle doesn't move enough or the player is jumping/falling.
 				}
