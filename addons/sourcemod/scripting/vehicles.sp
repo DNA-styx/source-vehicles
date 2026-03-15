@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.12" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.13" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus"
 #define PLUGIN_URL		"https://github.com/ProfOrribilus/source-vehicles"
 
@@ -150,7 +150,8 @@ enum struct VehicleConfig
 					for (int i = 0; i < 6; i++)
 					{
 						Format(modelFileName, sizeof(modelFileName), "%s%s", this.model, g_ModelFileExtensions[i]);
-						AddFileToDownloadsTable(modelFileName);
+						if (FileExists(modelFileName, true))
+							AddFileToDownloadsTable(modelFileName);
 					}
 
 					StrCat(this.model, sizeof(this.model), ".mdl");
@@ -165,7 +166,8 @@ enum struct VehicleConfig
 					for (int i = 0; i < 6; i++)
 					{
 						Format(modelFileName, sizeof(modelFileName), "%s%s", this.dummyModel, g_ModelFileExtensions[i]);
-						AddFileToDownloadsTable(modelFileName);
+						if (FileExists(modelFileName, true))
+							AddFileToDownloadsTable(modelFileName);
 					}
 
 					StrCat(this.dummyModel, sizeof(this.dummyModel), ".mdl");
