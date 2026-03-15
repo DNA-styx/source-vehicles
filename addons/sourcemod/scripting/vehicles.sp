@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.10" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.12" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus"
 #define PLUGIN_URL		"https://github.com/ProfOrribilus/source-vehicles"
 
@@ -94,6 +94,7 @@ ArrayList g_VehicleProperties;
 ArrayList g_VehicleSpawnerProperties;
 ArrayList g_ConVars;
 
+bool g_VehicleDamageDealerEnabled;
 bool g_VehiclePassengerModelsEnabled;
 char g_DefaultPlayerModels[2][6][PLATFORM_MAX_PATH];
 
@@ -157,7 +158,7 @@ enum struct VehicleConfig
 			}
 
 			kv.GetString("dummy_model", this.dummyModel, sizeof(this.dummyModel));
-			if (this.dummyModel[0] != EOS)
+			if (this.dummyModel[0] != EOS && g_VehicleDamageDealerEnabled)
 			{
 				if (StrContains(this.dummyModel, ".mdl") == -1 || (StrContains(this.dummyModel, ".mdl") != -1 && StrContains(this.dummyModel, ".mdl") != (strlen(this.dummyModel) - 4)))
 				{
@@ -1390,10 +1391,14 @@ void InitializeGameVariables()
 		g_PlayerModelClassName[4] = "mg";
 		g_PlayerModelClassName[5] = "rocket";
 
+		g_VehicleDamageDealerEnabled = true;
 		g_VehiclePassengerModelsEnabled = true;
 	}
 	else
+	{
+		g_VehicleDamageDealerEnabled = false;
 		g_VehiclePassengerModelsEnabled = false;
+	}
 
 	g_ModelVehiclePassengerClassName[0] = "driver";
 	g_ModelVehiclePassengerClassName[1] = "shooter";
@@ -1596,7 +1601,7 @@ void GetShooterOutFromVehicle(int shooter, bool forced)
 
 void SpawnDamageDealerForVehicle(int vehicle, VehicleConfig vehicleConfig)
 {
-	if (vehicleConfig.dummyModel[0] != EOS)
+	if (vehicleConfig.dummyModel[0] != EOS && g_VehicleDamageDealerEnabled)
 	{
 		float vehicleOrigin[3];
 		float vehicleAngles[3];
