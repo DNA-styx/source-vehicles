@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.8" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.9" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus"
 #define PLUGIN_URL		"https://github.com/ProfOrribilus/source-vehicles"
 
@@ -1407,28 +1407,31 @@ void InitializeGameVariables()
 }
 
 // Sets the player model for vehicle passengers corresponding to his team and class.
-void SetEntityModelForVehicle(int entity, int client, char passengerTypeName[16], VehicleConfig vehicleConfig)
+void SetPassengerModelForVehicle(int entity, int client, char passengerTypeName[16], VehicleConfig vehicleConfig)
 {
-	int clientTeam = (Player(client).Team - 2);
-	int clientClass = GetEntProp(client, Prop_Send, "m_iPlayerClass");
-	GetClientModel(client, g_DefaultPlayerModels[clientTeam][clientClass], sizeof(g_DefaultPlayerModels[clientTeam][clientClass]));
-	
-	char modelName[PLATFORM_MAX_PATH];
-	char modelFullName[PLATFORM_MAX_PATH];
+	if (vehicleConfig.is_passenger_visible)
+	{
+		int clientTeam = (Player(client).Team - 2);
+		int clientClass = GetEntProp(client, Prop_Send, "m_iPlayerClass");
+		GetClientModel(client, g_DefaultPlayerModels[clientTeam][clientClass], sizeof(g_DefaultPlayerModels[clientTeam][clientClass]));
+		
+		char modelName[PLATFORM_MAX_PATH];
+		char modelFullName[PLATFORM_MAX_PATH];
 
-	if (vehicleConfig.passengerModelVersion[0] == EOS)
-		Format(modelName, sizeof(modelName), VEHICLEPLAYER_MODELNAME_TEMPLATE, g_PlayerModelTeamName[clientTeam], g_PlayerModelClassName[clientClass], vehicleConfig.id, passengerTypeName);
-	else
-		Format(modelName, sizeof(modelName), VEHICLEPLAYER_MODELNAMEWITHSUFFIX_TEMPLATE, g_PlayerModelTeamName[clientTeam], g_PlayerModelClassName[clientClass], vehicleConfig.id, passengerTypeName, vehicleConfig.passengerModelVersion);
-	
-	Format(modelFullName, sizeof(modelFullName), "%s.mdl", modelName);
-	if (FileExists(modelFullName, true))
-		SetEntityModel(entity, modelFullName);
-	else
-		LogError("Vehicle passenger's model setup failed for client %i (missing model: %s)", client, modelFullName);
+		if (vehicleConfig.passengerModelVersion[0] == EOS)
+			Format(modelName, sizeof(modelName), VEHICLEPLAYER_MODELNAME_TEMPLATE, g_PlayerModelTeamName[clientTeam], g_PlayerModelClassName[clientClass], vehicleConfig.id, passengerTypeName);
+		else
+			Format(modelName, sizeof(modelName), VEHICLEPLAYER_MODELNAMEWITHSUFFIX_TEMPLATE, g_PlayerModelTeamName[clientTeam], g_PlayerModelClassName[clientClass], vehicleConfig.id, passengerTypeName, vehicleConfig.passengerModelVersion);
+		
+		Format(modelFullName, sizeof(modelFullName), "%s.mdl", modelName);
+		if (FileExists(modelFullName, true))
+			SetEntityModel(entity, modelFullName);
+		else
+			LogError("Vehicle passenger's model setup failed for client %i (missing model: %s)", client, modelFullName);
+	}
 }
 
-// Revert player model to his default one. Used when a player exits a vehicle. The default model is retrieved from a global array which is populated by the SetEntityModelForVehicle function.
+// Revert player model to his default one. Used when a player exits a vehicle. The default model is retrieved from a global array which is populated by the SetPassengerModelForVehicle function.
 void RevertClientModelToDefault(int client)
 {
 	int clientTeam = (Player(client).Team - 2);
@@ -1465,8 +1468,7 @@ bool GetShooterInVehicle(int shooter, int vehicle)
 		
 		VehicleConfig vehicleConfig;
 		GetConfigByVehicleEnt(vehicle, vehicleConfig);
-		if (vehicleConfig.is_passenger_visible)
-			SetEntityModelForVehicle(shooter, shooter, "shooter", vehicleConfig);
+		SetPassengerModelForVehicle(shooter, shooter, "shooter", vehicleConfig);
 		
 		return true;
 	}
@@ -3283,7 +3285,7 @@ public MRESReturn DHookCallback_GetInVehicle(int client)
 		{
 			SetEntityRenderMode(client, RENDER_NONE);
 			DispatchKeyValueInt(client, "solid", 0);
-			SetEntityModelForVehicle(Vehicle(vehicle).DummyDriver, client, "driver", vehicleConfig);
+			SetPassengerModelForVehicle(Vehicle(vehicle).DummyDriver, client, "driver", vehicleConfig);
 		}
 	}
 	
