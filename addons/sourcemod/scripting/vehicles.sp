@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.14" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.15" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus"
 #define PLUGIN_URL		"https://github.com/ProfOrribilus/source-vehicles"
 
@@ -97,6 +97,7 @@ ArrayList g_ConVars;
 bool g_VehicleDamageDealerEnabled;
 bool g_VehiclePassengerModelsEnabled;
 char g_DefaultPlayerModels[2][6][PLATFORM_MAX_PATH];
+float g_VehicleDamageModifier;
 
 char g_PlayerModelTeamName[2][PLATFORM_MAX_PATH];
 char g_PlayerModelClassName[6][PLATFORM_MAX_PATH];
@@ -1381,25 +1382,30 @@ void RestoreConVar(const char[] name)
 
 void InitializeGameVariables()
 {
-	if (GetEngineVersion() == Engine_DODS)
+	switch (GetEngineVersion())
 	{
-		g_PlayerModelTeamName[0] = "american";
-		g_PlayerModelTeamName[1] = "german";
+		case Engine_DODS:
+		{
+			g_VehicleDamageModifier = 0.025;
+			g_VehicleDamageDealerEnabled = true;
+			g_VehiclePassengerModelsEnabled = true;
 
-		g_PlayerModelClassName[0] = "rifleman";
-		g_PlayerModelClassName[1] = "assault";
-		g_PlayerModelClassName[2] = "support";
-		g_PlayerModelClassName[3] = "sniper";
-		g_PlayerModelClassName[4] = "mg";
-		g_PlayerModelClassName[5] = "rocket";
+			g_PlayerModelTeamName[0] = "american";
+			g_PlayerModelTeamName[1] = "german";
 
-		g_VehicleDamageDealerEnabled = true;
-		g_VehiclePassengerModelsEnabled = true;
-	}
-	else
-	{
-		g_VehicleDamageDealerEnabled = false;
-		g_VehiclePassengerModelsEnabled = false;
+			g_PlayerModelClassName[0] = "rifleman";
+			g_PlayerModelClassName[1] = "assault";
+			g_PlayerModelClassName[2] = "support";
+			g_PlayerModelClassName[3] = "sniper";
+			g_PlayerModelClassName[4] = "mg";
+			g_PlayerModelClassName[5] = "rocket";
+		}
+		default:
+		{
+			g_VehicleDamageModifier = 0.2;
+			g_VehicleDamageDealerEnabled = false;
+			g_VehiclePassengerModelsEnabled = false;
+		}
 	}
 
 	g_ModelVehiclePassengerClassName[0] = "driver";
@@ -2537,7 +2543,8 @@ public Action SDKHookCB_PropVehicleDriveable_OnTakeDamage(int vehicle, int &atta
 		if (damagetype != DMG_BLAST)
 		{
 			damagetype |= DMG_PREVENT_PHYSICS_FORCE;
-			Vehicle(vehicle).Health -= damage * 0.025;
+			Vehicle(vehicle).Health -= damage * g_VehicleDamageModifier;
+
 			return Plugin_Changed;
 		}
 		else
