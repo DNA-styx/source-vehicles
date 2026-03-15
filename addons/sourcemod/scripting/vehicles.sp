@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.9" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.10" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus"
 #define PLUGIN_URL		"https://github.com/ProfOrribilus/source-vehicles"
 
@@ -229,7 +229,7 @@ enum struct VehicleConfig
 			this.lock_speed = kv.GetFloat("lock_speed", 10.0);
 			kv.GetString("key_hint", this.key_hint, sizeof(this.key_hint));
 			this.is_passenger_visible = kv.GetNum("is_passenger_visible", true) != 0;
-			this.are_exitpoints_eyes = kv.GetNum("are_exitpoints_eyes", true) != 0;
+			this.are_exitpoints_eyes = kv.GetNum("are_exitpoints_eyes", false) != 0;
 			
 			kv.GetString("horn_sound", this.horn_sound, sizeof(this.horn_sound));
 			if (this.horn_sound[0] != EOS)
