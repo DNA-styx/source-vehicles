@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.15" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.16" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus"
 #define PLUGIN_URL		"https://github.com/ProfOrribilus/source-vehicles"
 
@@ -96,8 +96,9 @@ ArrayList g_ConVars;
 
 bool g_VehicleDamageDealerEnabled;
 bool g_VehiclePassengerModelsEnabled;
-char g_DefaultPlayerModels[2][6][PLATFORM_MAX_PATH];
 float g_VehicleDamageModifier;
+char g_VehicleExplosionSoundName[32];
+char g_DefaultPlayerModels[2][6][PLATFORM_MAX_PATH];
 
 char g_PlayerModelTeamName[2][PLATFORM_MAX_PATH];
 char g_PlayerModelClassName[6][PLATFORM_MAX_PATH];
@@ -1389,6 +1390,7 @@ void InitializeGameVariables()
 			g_VehicleDamageModifier = 0.025;
 			g_VehicleDamageDealerEnabled = true;
 			g_VehiclePassengerModelsEnabled = true;
+			g_VehicleExplosionSoundName = "Weapon_C4.Explode";
 
 			g_PlayerModelTeamName[0] = "american";
 			g_PlayerModelTeamName[1] = "german";
@@ -1405,6 +1407,7 @@ void InitializeGameVariables()
 			g_VehicleDamageModifier = 0.2;
 			g_VehicleDamageDealerEnabled = false;
 			g_VehiclePassengerModelsEnabled = false;
+			g_VehicleExplosionSoundName = "explode_5";
 		}
 	}
 
@@ -2571,7 +2574,7 @@ public void SDKHookCB_PropVehicleDriveable_OnTakeDamagePost(int victim, int atta
 				if (driver != -1)
 					SDKCall_HandlePassengerExit(GetServerVehicle(victim), driver);
 					
-				EmitGameSoundToAll("Weapon_C4.Explode", Vehicle(victim).Explosive, SND_NOFLAGS);
+				EmitGameSoundToAll(g_VehicleExplosionSoundName, Vehicle(victim).Explosive, SND_NOFLAGS);
 				AcceptEntityInput(Vehicle(victim).Explosive, "Explode");
 
 				if (vehicleConfig.skins.Length > 1)
