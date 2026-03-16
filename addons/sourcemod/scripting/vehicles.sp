@@ -2501,9 +2501,7 @@ public Action SDKHookCB_Client_OnTakeDamage(int victim, int &attacker, int &infl
 		{
 			int driver = GetEntPropEnt(inflictor, Prop_Data, "m_hPlayer");
 			if (driver != -1 && victim != driver)
-			{
-				PrintToChatAll("Vehicle %i inflicted %f damage", inflictor, damage);
-				
+			{	
 				damage *= vehicle_physics_damage_modifier.FloatValue;
 				attacker = driver;
 				returnValue = Plugin_Changed;
