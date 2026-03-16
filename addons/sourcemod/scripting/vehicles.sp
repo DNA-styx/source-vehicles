@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.16" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.17" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus"
 #define PLUGIN_URL		"https://github.com/ProfOrribilus/source-vehicles"
 
@@ -2464,17 +2464,16 @@ public Action SDKHookCB_Client_OnTakeDamage(int victim, int &attacker, int &infl
 	// Player got hit by a vehicle. In games like DoDS this doesn't happen; for them we have the DamageDealer entity parented to every vehicle.
 	if (IsEntityVehicle(inflictor))
 	{
-		if (Vehicle(inflictor).DamageDealer != -1)
+		if (damagetype & DMG_VEHICLE)
 		{
-			if (damagetype & DMG_VEHICLE)
+			int driver = GetEntPropEnt(inflictor, Prop_Data, "m_hPlayer");
+			if (driver != -1 && victim != driver)
 			{
-				int driver = GetEntPropEnt(inflictor, Prop_Data, "m_hPlayer");
-				if (driver != -1 && victim != driver)
-				{
-					damage *= vehicle_physics_damage_modifier.FloatValue;
-					attacker = driver;
-					returnValue = Plugin_Changed;
-				}
+				PrintToChatAll("Vehicle %i inflicted %f damage", inflictor, damage);
+				
+				damage *= vehicle_physics_damage_modifier.FloatValue;
+				attacker = driver;
+				returnValue = Plugin_Changed;
 			}
 		}
 	}
