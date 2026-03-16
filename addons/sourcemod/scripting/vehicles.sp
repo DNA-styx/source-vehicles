@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.17" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.18" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus"
 #define PLUGIN_URL		"https://github.com/ProfOrribilus/source-vehicles"
 
@@ -1706,6 +1706,39 @@ void SpawnDummyDriverForVehicle(int thisVehicle, int client)
 		LogError("Dummy driver creation failed due to attachment retrieving failed for vehicle %i", thisVehicle);
 }
 
+void SpawnPusherForVehicle(int vehicle)
+{
+	if (g_VehicleDamageDealerEnabled)
+	{
+		int pusher = CreateEntityByName("point_push");
+		if (pusher != -1)
+		{
+			float vehicleOrigin[3];
+			GetEntPropVector(vehicle, Prop_Send, "m_vecOrigin", vehicleOrigin);
+			AddVectors(vehicleOrigin, {0.0, 0.0, 100.0}, vehicleOrigin);
+			DispatchKeyValueVector(pusher, "origin", vehicleOrigin);
+			DispatchKeyValueFloat(pusher, "radius", 200.0);
+			DispatchKeyValueFloat(pusher, "magnitude", 200.0);
+			DispatchKeyValueInt(pusher, "spawnflags", 8);
+
+			if (DispatchSpawn(pusher))
+			{
+				SDKCall_SetParent(pusher, vehicle, 0);
+				AcceptEntityInput(pusher, "Enable");
+				Vehicle(vehicle).Pusher = pusher;
+			}
+			else
+			{
+				LogError("Pusher %i for vehicle %i spawning failed", pusher, vehicle);
+			}
+		}
+		else
+		{
+			LogError("Pusher %i for vehicle %i creation failed", pusher, vehicle);
+		}
+	}
+}
+
 void SpawnExplosiveForVehicle(int vehicle)
 {
 	int explosive = CreateEntityByName("env_explosion");
@@ -2629,34 +2662,7 @@ public void SDKHookCB_PropVehicleDriveable_SpawnPost(int vehicle)
 		SetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit", config.lock_speed);
 
 		SpawnDamageDealerForVehicle(vehicle, config);
-
-		int pusher = CreateEntityByName("point_push");
-		if (pusher != -1)
-		{
-			float vehicleOrigin[3];
-			GetEntPropVector(vehicle, Prop_Send, "m_vecOrigin", vehicleOrigin);
-			AddVectors(vehicleOrigin, {0.0, 0.0, 100.0}, vehicleOrigin);
-			DispatchKeyValueVector(pusher, "origin", vehicleOrigin);
-			DispatchKeyValueFloat(pusher, "radius", 200.0);
-			DispatchKeyValueFloat(pusher, "magnitude", 200.0);
-			DispatchKeyValueInt(pusher, "spawnflags", 8);
-
-			if (DispatchSpawn(pusher))
-			{
-				SDKCall_SetParent(pusher, vehicle, 0);
-				AcceptEntityInput(pusher, "Enable");
-				Vehicle(vehicle).Pusher = pusher;
-			}
-			else
-			{
-				LogError("Pusher %i for vehicle %i spawning failed", pusher, vehicle);
-			}
-		}
-		else
-		{
-			LogError("Pusher %i for vehicle %i creation failed", pusher, vehicle);
-		}
-
+		SpawnPusherForVehicle(vehicle);
 		SpawnExplosiveForVehicle(vehicle);
 	}
 }
