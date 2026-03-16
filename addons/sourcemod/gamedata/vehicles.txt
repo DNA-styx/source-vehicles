@@ -16,105 +16,13 @@
  */
 
 "Games"
-{
-	"dod"
-	{		
-		"Signatures"
+{	
+	"#default"
+	{
+		"#supported"
 		{
-			"CBasePlayer::CanEnterVehicle"
-			{
-				"linux"		"@_ZN11CBasePlayer15CanEnterVehicleEP14IServerVehiclei"
-				"windows"	"\x55\x8B\xEC\x56\x57\x8B\x7D\x08\x8B\xF1\xFF\x75\x0C"
-			}
-			"CPlayerMove::SetupMove"
-			{
-				"linux"		"@_ZN11CPlayerMove9SetupMoveEP11CBasePlayerP8CUserCmdP11IMoveHelperP9CMoveData"
-				"windows"	"\x55\x8B\xEC\x83\xEC\x60\x53\x56\x8B\x75\x14"
-			}
-			"CBaseAnimating::GetAttachmentLocal"
-			{
-				"linux"		"@_ZN14CBaseAnimating18GetAttachmentLocalEiR6VectorR6QAngle"
-				"windows"	"\x55\x8B\xEC\x81\xEC\x90\x00\x00\x00\x53\x56"
-			}
-			"CPointPush::PushEntity"
-			{
-				"linux"		"@_ZN10CPointPush10PushEntityEP11CBaseEntity"
-				"windows"	"\x53\x8B\xDC\x83\xEC\x08\x83\xE4\xF0\x83\xC4\x04\x55\x8B\x6B\x04\x89\x6C\x24\x04\x8B\xEC\x83\xEC\x48\x56\x8B\xF1\x57\x8B\x7B\x08"
-			}
-		}
-		
-		"Offsets"
-		{
-			"CGameRules::ShouldCollide"
-			{
-				"linux"		"30"
-				"windows"	"29"
-			}
-			"CBaseServerVehicle::SetupMove"
-			{
-				"linux"		"4"
-				"windows"	"4"
-			}
-			"CBaseServerVehicle::GetVehicleEnt"
-			{
-				"linux"		"8"
-				"windows"	"8"
-			}
-			"CBaseServerVehicle::SetPassenger"
-			{
-				"linux"		"9"
-				"windows"	"9"
-			}
-			"CBaseServerVehicle::IsPassengerVisible"
-			{
-				"linux"		"10"
-				"windows"	"10"
-			}
-			"CBaseServerVehicle::HandlePassengerEntry"
-			{
-				"linux"		"17"
-				"windows"	"17"
-			}
-			"CBaseServerVehicle::HandlePassengerExit"
-			{
-				"linux"		"18"
-				"windows"	"18"
-			}
-			"CBaseServerVehicle::GetExitAnimToUse"
-			{
-				"linux"		"21"
-				"windows"	"21"
-			}
-			"CBaseServerVehicle::HandleEntryExitFinish"
-			{
-				"linux"		"22"
-				"windows"	"22"
-			}
-			"CBaseAnimating::StudioFrameAdvance"
-			{
-				"linux"		"197"
-				"windows"	"196"
-			}
-			"CBasePlayer::GetInVehicle"
-			{
-				"linux"		"400"
-				"windows"	"399"
-			}
-			"CBasePlayer::LeaveVehicle"
-			{
-				"linux"		"401"
-				"windows"	"400"
-			}
-			"CBaseEntity::SetParent"
-			{
-				"linux"		"37"
-				"windows"	"36"
-			}
-			"CBaseServerVehicle::CheckExitPoint"
-			{
-				"linux"		"62"
-				"windows"	"62"
-			}
+			"game"	"dod"
+			"game"	"hl2mp"
 		}
 		
 		"Functions"
@@ -302,6 +210,104 @@
 						"type"	"cbaseentity"
 					}
 				}
+			}
+		}
+		
+		"Signatures"
+		{
+			"CBasePlayer::CanEnterVehicle"
+			{
+				"linux"		"@_ZN11CBasePlayer15CanEnterVehicleEP14IServerVehiclei"
+				"windows"	"\x55\x8B\xEC\x56\x57\x8B\x7D\x08\x8B\xF1\xFF\x75\x0C"
+			}
+			"CPlayerMove::SetupMove"
+			{
+				"linux"		"@_ZN11CPlayerMove9SetupMoveEP11CBasePlayerP8CUserCmdP11IMoveHelperP9CMoveData"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x60\x53\x56\x8B\x75\x14"
+			}
+			"CBaseAnimating::GetAttachmentLocal"
+			{
+				"linux"		"@_ZN14CBaseAnimating18GetAttachmentLocalEiR6VectorR6QAngle"
+				"windows"	"\x55\x8B\xEC\x81\xEC\x90\x00\x00\x00\x53\x56"
+			}
+			"CPointPush::PushEntity"
+			{
+				"linux"		"@_ZN10CPointPush10PushEntityEP11CBaseEntity"
+				"windows"	"\x53\x8B\xDC\x83\xEC\x08\x83\xE4\xF0\x83\xC4\x04\x55\x8B\x6B\x04\x89\x6C\x24\x04\x8B\xEC\x83\xEC\x48\x56\x8B\xF1\x57\x8B\x7B\x08"
+			}
+		}
+		
+		"Offsets"
+		{
+			"CGameRules::ShouldCollide"
+			{
+				"linux"		"30"
+				"windows"	"29"
+			}
+			"CBaseServerVehicle::SetupMove"
+			{
+				"linux"		"4"
+				"windows"	"4"
+			}
+			"CBaseServerVehicle::GetVehicleEnt"
+			{
+				"linux"		"8"
+				"windows"	"8"
+			}
+			"CBaseServerVehicle::SetPassenger"
+			{
+				"linux"		"9"
+				"windows"	"9"
+			}
+			"CBaseServerVehicle::IsPassengerVisible"
+			{
+				"linux"		"10"
+				"windows"	"10"
+			}
+			"CBaseServerVehicle::HandlePassengerEntry"
+			{
+				"linux"		"17"
+				"windows"	"17"
+			}
+			"CBaseServerVehicle::HandlePassengerExit"
+			{
+				"linux"		"18"
+				"windows"	"18"
+			}
+			"CBaseServerVehicle::GetExitAnimToUse"
+			{
+				"linux"		"21"
+				"windows"	"21"
+			}
+			"CBaseServerVehicle::HandleEntryExitFinish"
+			{
+				"linux"		"22"
+				"windows"	"22"
+			}
+			"CBaseAnimating::StudioFrameAdvance"
+			{
+				"linux"		"197"
+				"windows"	"196"
+			}
+			"CBasePlayer::GetInVehicle"
+			{
+				"linux"		"400"
+				"windows"	"399"
+			}
+			"CBasePlayer::LeaveVehicle"
+			{
+				"linux"		"401"
+				"windows"	"400"
+			}
+			"CBaseEntity::SetParent"
+			{
+				"linux"		"37"
+				"windows"	"36"
+			}
+			"CBaseServerVehicle::CheckExitPoint"
+			{
+				"linux"		"62"
+				"windows"	"62"
 			}
 		}
 	}
