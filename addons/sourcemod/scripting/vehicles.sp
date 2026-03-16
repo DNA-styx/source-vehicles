@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.18" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.19" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus"
 #define PLUGIN_URL		"https://github.com/ProfOrribilus/source-vehicles"
 
@@ -100,6 +100,11 @@ float g_VehicleDamageModifier;
 char g_VehicleExplosionSoundName[32];
 char g_DefaultPlayerModels[2][6][PLATFORM_MAX_PATH];
 
+float g_DefaultPlayerViewOffset[] = { 0.0, 0.0, 54.0 };
+float g_playerMins[] = {-16.0, -16.0, -36.0};
+float g_playerMaxs[] = {16.0, 16.0, 36.0};
+bool g_ExecRoundStartHookFunction;
+
 char g_PlayerModelTeamName[2][PLATFORM_MAX_PATH];
 char g_PlayerModelClassName[6][PLATFORM_MAX_PATH];
 char g_ModelVehiclePassengerClassName[2][PLATFORM_MAX_PATH];
@@ -111,12 +116,6 @@ bool g_ClientIsUsingHorn[MAXPLAYERS + 1];
 int g_ClientIsInVehicleAsDriver[MAXPLAYERS + 1];
 int g_ClientIsInVehicleAsShooter[MAXPLAYERS + 1];
 bool g_ClientHasVehicleUseDisabled[MAXPLAYERS + 1];
-
-int g_CollisionGroupDefault = -1;
-float g_VecViewOffsetDefault[3];
-bool g_ExecRoundStartHookFunction;
-float g_playerMins[] = {-16.0, -16.0, -36.0};
-float g_playerMaxs[] = {16.0, 16.0, 36.0};
 
 enum struct VehicleConfig
 {
@@ -954,14 +953,6 @@ public void OnClientPutInServer(int client)
 
 	HookEvent("player_team", EventCallback_PlayerTeam, EventHookMode_Post);
 	HookEvent("player_death", EventCallback_PlayerDeath, EventHookMode_Pre);
-	
-	if (g_CollisionGroupDefault == -1)
-	{
-		g_CollisionGroupDefault = GetEntProp(client, Prop_Send, "m_CollisionGroup");
-		g_VecViewOffsetDefault[0] = GetEntPropFloat(client, Prop_Send, "m_vecViewOffset[0]");
-		g_VecViewOffsetDefault[1] = GetEntPropFloat(client, Prop_Send, "m_vecViewOffset[1]");
-		g_VecViewOffsetDefault[2] = GetEntPropFloat(client, Prop_Send, "m_vecViewOffset[2]");
-	}
 }
 
 public void OnClientDisconnect(int client)
@@ -1173,6 +1164,28 @@ bool GetClientViewPos(int client, int entity, int mask, float position[3], float
 	angles[0] = 0.0;
 	
 	return true;
+}
+
+/* Function not used at the moment, so deactivated to avoid its compilation warning
+void GetClientViewOffset(int client, float vecOffset[3])
+{
+	if (IsEntityClient(client))
+	{
+		vecOffset[0] = GetEntPropFloat(client, Prop_Send, "m_vecViewOffset[0]");
+		vecOffset[1] = GetEntPropFloat(client, Prop_Send, "m_vecViewOffset[1]");
+		vecOffset[2] = GetEntPropFloat(client, Prop_Send, "m_vecViewOffset[2]");
+	}
+}
+*/
+
+void SetClientViewOffset(int client, float vecOffset[3])
+{
+	if (IsEntityClient(client))
+	{
+		SetEntPropFloat(client, Prop_Send, "m_vecViewOffset[0]", vecOffset[0]);
+		SetEntPropFloat(client, Prop_Send, "m_vecViewOffset[1]", vecOffset[1]);
+		SetEntPropFloat(client, Prop_Send, "m_vecViewOffset[2]", vecOffset[2]);
+	}
 }
 
 void PrintKeyHintText(int client, const char[] format, any...)
@@ -1468,10 +1481,8 @@ bool GetShooterInVehicle(int shooter, int vehicle)
 	if ((attachment = LookupEntityAttachment(vehicle, "vehicle_shooter_feet")) > 0)
 	{
 		float shooterViewOffsetForVehicle[3];
-		AddVectors(g_VecViewOffsetDefault, { 0.0, 0.0, 12.0 }, shooterViewOffsetForVehicle);
-		SetEntPropFloat(shooter, Prop_Send, "m_vecViewOffset[0]", shooterViewOffsetForVehicle[0]);
-		SetEntPropFloat(shooter, Prop_Send, "m_vecViewOffset[1]", shooterViewOffsetForVehicle[1]);
-		SetEntPropFloat(shooter, Prop_Send, "m_vecViewOffset[2]", shooterViewOffsetForVehicle[2]);
+		AddVectors(g_DefaultPlayerViewOffset, { 0.0, 0.0, 12.0 }, shooterViewOffsetForVehicle);
+		SetClientViewOffset(shooter, shooterViewOffsetForVehicle);
 		
 		GetEntityAttachment(vehicle, attachment, vehicleFeet1Origin, vehicleFeet1Angles);
 		TeleportEntity(shooter, vehicleFeet1Origin);
@@ -1516,9 +1527,9 @@ bool CheckExitPoint(float vecStartPosition[3], float vecStartAngles[3], float ve
 	if (areExitpointsEyes)
 	{
 		float vecViewOffsetApplier[3];
-		vecViewOffsetApplier[0] = g_VecViewOffsetDefault[0];
-		vecViewOffsetApplier[1] = g_VecViewOffsetDefault[1];
-		vecViewOffsetApplier[2] = (g_VecViewOffsetDefault[2] * -1);
+		vecViewOffsetApplier[0] = g_DefaultPlayerViewOffset[0];
+		vecViewOffsetApplier[1] = g_DefaultPlayerViewOffset[1];
+		vecViewOffsetApplier[2] = (g_DefaultPlayerViewOffset[2] * -1);
 		AddVectors(vecTraceStartOffset, vecViewOffsetApplier, vecTraceStartOffset);
 	}
 
@@ -1581,9 +1592,7 @@ void GetShooterOutFromVehicle(int shooter, bool forced)
 					if (IsExitPointFound || forced)
 					{
 						AcceptEntityInput(shooter, "ClearParent");
-						SetEntPropFloat(shooter, Prop_Send, "m_vecViewOffset[0]", g_VecViewOffsetDefault[0]);
-						SetEntPropFloat(shooter, Prop_Send, "m_vecViewOffset[1]", g_VecViewOffsetDefault[1]);
-						SetEntPropFloat(shooter, Prop_Send, "m_vecViewOffset[2]", g_VecViewOffsetDefault[2]);
+						SetClientViewOffset(shooter, g_DefaultPlayerViewOffset);
 
 						if (IsExitPointFound)
 						{	
