@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.19" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.20" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus"
 #define PLUGIN_URL		"https://github.com/ProfOrribilus/source-vehicles"
 
@@ -1477,8 +1477,10 @@ bool GetShooterInVehicle(int shooter, int vehicle)
 	float vehicleFeet1Origin[3];
 	float vehicleFeet1Angles[3];
 	int attachment;
-	
-	if ((attachment = LookupEntityAttachment(vehicle, "vehicle_shooter_feet")) > 0)
+	VehicleConfig vehicleConfig;
+	GetConfigByVehicleEnt(vehicle, vehicleConfig);
+
+	if ((attachment = LookupEntityAttachment(vehicle, "vehicle_shooter_feet")) > 0 && vehicleConfig.is_passenger_visible)
 	{
 		float shooterViewOffsetForVehicle[3];
 		AddVectors(g_DefaultPlayerViewOffset, { 0.0, 0.0, 12.0 }, shooterViewOffsetForVehicle);
@@ -1493,8 +1495,6 @@ bool GetShooterInVehicle(int shooter, int vehicle)
 		Player(shooter).HasVehicleUseDisabled = true;
 		CreateTimer(2.0, Timer_RestoreUseOnVehicleForShooter, shooter);
 		
-		VehicleConfig vehicleConfig;
-		GetConfigByVehicleEnt(vehicle, vehicleConfig);
 		SetPassengerModelForVehicle(shooter, shooter, "shooter", vehicleConfig);
 		
 		return true;
