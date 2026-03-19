@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.20" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.21" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus"
 #define PLUGIN_URL		"https://github.com/ProfOrribilus/source-vehicles"
 
@@ -837,7 +837,7 @@ public void OnPluginStart()
 	g_DHookLeaveVehicle = CreateDynamicHook(gamedata, "CBasePlayer::LeaveVehicle");
 	g_DHookCheckExitPoint = CreateDynamicHook(gamedata, "CBaseServerVehicle::CheckExitPoint");
 	CreateDynamicDetour(gamedata, "CPointPush::PushEntity", DHookCallback_PushEntity);
-	 
+
 	g_SDKCallVehicleSetupMove = PrepSDKCall_VehicleSetupMove(gamedata);
 	g_SDKCallCanEnterVehicle = PrepSDKCall_CanEnterVehicle(gamedata);
 	g_SDKCallGetAttachmentLocal = PrepSDKCall_GetAttachmentLocal(gamedata);
@@ -1833,6 +1833,7 @@ void RequestFrameCallback_LeaveVehicle(int exDriver)
 
 		if (vehicleConfig.is_passenger_visible)
 		{
+			SetEntityRenderColor(exDriver, 255, 255, 255, 255);
 			SetEntityRenderMode(exDriver, RENDER_NORMAL);
 			DispatchKeyValueInt(exDriver, "solid", 2);
 			RevertClientModelToDefault(exDriver);
@@ -3115,7 +3116,7 @@ void DHookClient(int client)
 	
 	if (g_DHookLeaveVehicle)
 		g_DHookLeaveVehicle.HookEntity(Hook_Post, client, DHookCallback_LeaveVehicle);
-
+	
 	SDKHook(client, SDKHook_OnTakeDamage, SDKHookCB_Client_OnTakeDamage);
 }
 
@@ -3312,7 +3313,8 @@ public MRESReturn DHookCallback_GetInVehicle(int client)
 		
 		if (Vehicle(vehicle).DummyDriver != -1)
 		{
-			SetEntityRenderMode(client, RENDER_NONE);
+			SetEntityRenderMode(client, RENDER_TRANSCOLOR);
+			SetEntityRenderColor(client, 255, 255, 255, 1);
 			DispatchKeyValueInt(client, "solid", 0);
 			SetPassengerModelForVehicle(Vehicle(vehicle).DummyDriver, client, "driver", vehicleConfig);
 		}
@@ -3320,7 +3322,7 @@ public MRESReturn DHookCallback_GetInVehicle(int client)
 	
 	if (!IsFakeClient(client))
 		SendConVarValue(client, FindConVar("sv_client_predict"), "0");
-	
+
 	return MRES_Ignored;
 }
 
