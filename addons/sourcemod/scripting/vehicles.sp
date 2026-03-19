@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.21" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.22" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus"
 #define PLUGIN_URL		"https://github.com/ProfOrribilus/source-vehicles"
 
@@ -927,8 +927,6 @@ public void OnMapStart()
 		HookEvent("dod_round_restart_seconds", EventHook_PreRoundRestart);
 		HookEvent("dod_round_win", EventHook_PreRoundRestart);
 	}
-	else
-		HookMapVehicles();
 }
 
 public void OnMapEnd()
@@ -1132,7 +1130,6 @@ int CreateVehicleNoSpawn(VehicleConfig config, float origin[3], float angles[3],
 	
 	Vehicle(vehicle).Owner = owner;
 	Vehicle(vehicle).Spawner = spawner;
-	Vehicle(vehicle).Health = 100.0;
 
 	return vehicle;	
 }
@@ -2409,8 +2406,6 @@ public void EventHook_RoundActive(Event event, const char[] name, bool dontBroad
 {
 	if (g_ExecRoundStartHookFunction)
 	{
-		HookMapVehicles();
-
 		// Spawn all the vehicles listed in map's related TXT file
 		KeyValues kvVehicleSpawners;
 		char currentLevelName[64];
@@ -2672,6 +2667,7 @@ public void SDKHookCB_PropVehicleDriveable_SpawnPost(int vehicle)
 		SpawnDamageDealerForVehicle(vehicle, config);
 		SpawnPusherForVehicle(vehicle);
 		SpawnExplosiveForVehicle(vehicle);
+		Vehicle(vehicle).Health = 100.0;
 	}
 }
 
@@ -3118,23 +3114,6 @@ void DHookClient(int client)
 		g_DHookLeaveVehicle.HookEntity(Hook_Post, client, DHookCallback_LeaveVehicle);
 	
 	SDKHook(client, SDKHook_OnTakeDamage, SDKHookCB_Client_OnTakeDamage);
-}
-
-// Activate all the vehicles placed in the map by its mapmaker
-void HookMapVehicles()
-{
-	int vehicle = -1;
-	while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
-	{
-		Vehicle.Register(vehicle);
-		
-		SDKHook(vehicle, SDKHook_Think, SDKHookCB_PropVehicleDriveable_Think);
-		SDKHook(vehicle, SDKHook_Use, SDKHookCB_PropVehicleDriveable_Use);
-		SDKHook(vehicle, SDKHook_OnTakeDamage, SDKHookCB_PropVehicleDriveable_OnTakeDamage);
-		SDKHook(vehicle, SDKHook_OnTakeDamagePost, SDKHookCB_PropVehicleDriveable_OnTakeDamagePost);
-		
-		DHookVehicle(GetServerVehicle(vehicle));
-	}
 }
 
 void DHookVehicle(Address serverVehicle)
