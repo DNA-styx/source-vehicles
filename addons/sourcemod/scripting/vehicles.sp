@@ -403,6 +403,14 @@ enum struct VehicleSpawnerProperties
 	float angles[3];
 }
 
+enum struct VehicleSoundsFixerProperties
+{
+	int vehicle;
+	char soundName[PLATFORM_MAX_PATH];
+	int soundChannel;
+	int amountEmitted;
+}
+
 enum struct ConVarData
 {
 	ConVar convar;
@@ -814,15 +822,16 @@ public void OnPluginStart()
 	RegAdminCmd("sm_vehicle_reload", ConCmd_ReloadVehicleConfig, ADMFLAG_CONFIG, "Reload vehicle configuration");
 	RegAdminCmd("sm_vehicle_placespawner", ConCmd_PlaceVehicleSpawnerHere, ADMFLAG_CONFIG, "Place a vehicle spawner where you are");
 
+	g_AllVehicles = new ArrayList(sizeof(VehicleConfig));
+	g_VehicleProperties = new ArrayList(sizeof(VehicleProperties));
+	g_VehicleSpawnerProperties = new ArrayList(sizeof(VehicleSpawnerProperties));
+	g_ConVars = new ArrayList(sizeof(ConVarData));
+	
 	AddCommandListener(CommandListener_VoiceMenu, "voicemenu");
+
 	if (GetEngineVersion() == Engine_DODS)
 		AddCommandListener(CommandListener_PlayerJoinTeam, "jointeam");
 
-	g_VehicleProperties = new ArrayList(sizeof(VehicleProperties));
-	g_VehicleSpawnerProperties = new ArrayList(sizeof(VehicleSpawnerProperties));
-	g_AllVehicles = new ArrayList(sizeof(VehicleConfig));
-	g_ConVars = new ArrayList(sizeof(ConVarData));
-	
 	GameData gamedata = new GameData("vehicles");
 	if (!gamedata)
 		SetFailState("Could not find vehicles gamedata");
@@ -1861,27 +1870,14 @@ void SpawnExplosiveForVehicle(int vehicle)
 	}
 }
 
-void StopGameSoundFromEntity(char gamesound[PLATFORM_MAX_PATH], int entity)
-{
-	int soundChannel;
-	int soundLevel;
-	float soundVolume;
-	int soundPitch;
-	char sampleSound[PLATFORM_MAX_PATH];
-	int emittingEntityDetected;
-
-	if (GetGameSoundParams(gamesound, soundChannel, soundLevel, soundVolume, soundPitch, sampleSound, sizeof(sampleSound), emittingEntityDetected))	
-		EmitSoundToAll(sampleSound, entity, soundChannel, soundLevel, SND_STOP | SND_STOPLOOPING);
-}
-
 void StopBuggedSoundsFromVehicle(int vehicle)
 {
-	StopGameSoundFromEntity("ATV_engine_idle", vehicle);
-	StopGameSoundFromEntity("ATV_engine_start", vehicle);
-	StopGameSoundFromEntity("ATV_firstgear", vehicle);
-	StopGameSoundFromEntity("ATV_turbo_on", vehicle);
-	StopGameSoundFromEntity("ATV_throttleoff_slowspeed", vehicle);
-	StopGameSoundFromEntity("ATV_reverse", vehicle);
+	EmitGameSoundToAll("ATV_engine_idle", vehicle, SND_STOP | SND_STOPLOOPING);
+	EmitGameSoundToAll("ATV_engine_start", vehicle, SND_STOP | SND_STOPLOOPING);
+	EmitGameSoundToAll("ATV_firstgear", vehicle, SND_STOP | SND_STOPLOOPING);
+	EmitGameSoundToAll("ATV_turbo_on", vehicle, SND_STOP | SND_STOPLOOPING);
+	EmitGameSoundToAll("ATV_throttleoff_slowspeed", vehicle, SND_STOP | SND_STOPLOOPING);
+	EmitGameSoundToAll("ATV_reverse", vehicle, SND_STOP | SND_STOPLOOPING);
 }
 
 void RequestFrameCallback_LeaveVehicle(int exDriver)
@@ -1942,11 +1938,9 @@ void RequestFrameCallback_LeaveVehicle(int exDriver)
 			else
 				LogError("Missing '%s' attachment on vehicle %i", attachments[i], vehicle);
 		}
-		//
-
-		StopBuggedSoundsFromVehicle(vehicle);
 		
-		CreateTimer(0.5, Timer_LeaveVehicle, exDriver);
+		CreateTimer(0.5, Timer_LeaveVehicle, exDriver, TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(1.5, Timer_StopVehicleBuggedSounds, vehicle, TIMER_FLAG_NO_MAPCHANGE);
 	}
 }
 
@@ -1954,6 +1948,11 @@ void Timer_LeaveVehicle(Handle timer, int exDriver)
 {
 	if (!IsFakeClient(exDriver))
 		SendConVarValue(exDriver, FindConVar("sv_client_predict"), "1");
+}
+
+void Timer_StopVehicleBuggedSounds(Handle timer, int vehicle)
+{
+	StopBuggedSoundsFromVehicle(vehicle);
 }
 
 //-----------------------------------------------------------------------------
@@ -2645,8 +2644,8 @@ public void SDKHookCB_PropVehicleDriveable_OnTakeDamagePost(int victim, int atta
 				}
 
 				AcceptEntityInput(victim, "TurnOff");
-				StopBuggedSoundsFromVehicle(victim);
 				AcceptEntityInput(victim, "Lock");
+				StopBuggedSoundsFromVehicle(victim);
 
 				CreateTimer(15.0, Timer_VehicleRespawner, victim, TIMER_FLAG_NO_MAPCHANGE);
 			}
