@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.22" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.23" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus"
 #define PLUGIN_URL		"https://github.com/ProfOrribilus/source-vehicles"
 
@@ -97,13 +97,13 @@ ArrayList g_ConVars;
 bool g_VehicleDamageDealerEnabled;
 bool g_VehiclePassengerModelsEnabled;
 float g_VehicleDamageModifier;
+bool g_ExecRoundStartHookFunction;
+
 char g_VehicleExplosionSoundName[32];
 char g_DefaultPlayerModels[2][6][PLATFORM_MAX_PATH];
-
 float g_DefaultPlayerViewOffset[] = { 0.0, 0.0, 54.0 };
 float g_playerMins[] = {-16.0, -16.0, -36.0};
 float g_playerMaxs[] = {16.0, 16.0, 36.0};
-bool g_ExecRoundStartHookFunction;
 
 char g_PlayerModelTeamName[2][PLATFORM_MAX_PATH];
 char g_PlayerModelClassName[6][PLATFORM_MAX_PATH];
@@ -1412,7 +1412,7 @@ void InitializeGameVariables()
 			g_PlayerModelClassName[4] = "mg";
 			g_PlayerModelClassName[5] = "rocket";
 		}
-		default:
+		case Engine_HL2DM:
 		{
 			g_VehicleDamageModifier = 0.2;
 			g_VehicleDamageDealerEnabled = false;
