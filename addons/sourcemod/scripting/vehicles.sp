@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.x.23" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.0" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus"
 #define PLUGIN_URL		"https://github.com/ProfOrribilus/source-vehicles"
 
@@ -920,12 +920,19 @@ public void OnMapStart()
 {
 	DHookGamerulesObject();
 
-	if (GetEngineVersion() == Engine_DODS)
+	switch (GetEngineVersion())
 	{
-		HookEvent("dod_round_start", EventHook_RoundStart);
-		HookEvent("dod_round_active", EventHook_RoundActive);
-		HookEvent("dod_round_restart_seconds", EventHook_PreRoundRestart);
-		HookEvent("dod_round_win", EventHook_PreRoundRestart);
+		case Engine_DODS:
+		{
+			HookEvent("dod_round_start", EventHook_RoundStart);
+			HookEvent("dod_round_active", EventHook_RoundActive);
+			HookEvent("dod_round_restart_seconds", EventHook_PreRoundRestart);
+			HookEvent("dod_round_win", EventHook_PreRoundRestart);
+		}
+		case Engine_HL2DM:
+		{
+			HookEvent("round_start", EventHook_RoundStart);
+		}
 	}
 }
 
@@ -1430,6 +1437,73 @@ void InitializeGameVariables()
 	g_ModelFileExtensions[3] = ".phy";
 	g_ModelFileExtensions[4] = ".sw.vtx";
 	g_ModelFileExtensions[5] = ".vvd";
+}
+
+// Spawn all the vehicles listed in the related map's TXT file
+void ReadMapSpawnersFile()
+{
+	KeyValues kvVehicleSpawners;
+	char currentLevelName[64];
+	char fileName[PLATFORM_MAX_PATH];
+	GetCurrentMap(currentLevelName, sizeof(currentLevelName));
+	Format(fileName, sizeof(fileName), VEHICLESPAWNERS_FILENAME_TEMPLATE, currentLevelName);
+
+	if (FileExists(fileName, false))
+	{
+		kvVehicleSpawners = CreateKeyValues("VehicleSpawners");
+		if (FileToKeyValues(kvVehicleSpawners, fileName))
+		{
+			g_VehicleSpawnerProperties.Clear();
+
+			char previousSectionName[64];
+			char currentSectionName[64];
+			char vehicleId[64];
+			float position[3];
+			float angles[3];
+			VehicleConfig vehicleConfig;
+
+			if (KvGotoFirstSubKey(kvVehicleSpawners, true))
+			{
+				do
+				{
+					KvGetSectionName(kvVehicleSpawners, currentSectionName, sizeof(currentSectionName));
+
+					if (!StrEqual(currentSectionName, previousSectionName))
+					{
+						KvGetString(kvVehicleSpawners, "id", vehicleId, sizeof(vehicleId));
+						KvGetVector(kvVehicleSpawners, "position", position);
+						KvGetVector(kvVehicleSpawners, "angles", angles);
+
+						if (GetConfigById(vehicleId, vehicleConfig))
+						{
+							position[2] = position[2] + 5.0;
+							angles[0] = 0.0;
+							angles[1] = angles[1] - 90.0;
+							angles[2] = 0.0;
+
+							int spawner = StringToInt(currentSectionName);
+							if (spawner == 0 && !StrEqual(currentSectionName, "0"))
+							{
+								spawner = -1;
+								LogError("Encountered an invalid spawner ID (\"%s\") during vehicles first spawn. It must be a number. The vehicle specified by this spawner ID will not be respawned if destroyed.", currentSectionName);
+							}
+							else
+							{
+								VehicleSpawner.Register(spawner, vehicleId, position, angles);
+							}
+
+							CreateVehicle(vehicleConfig, position, angles, -1, spawner);
+						}
+					}
+
+					strcopy(previousSectionName, sizeof(previousSectionName), currentSectionName);
+				}
+				while(KvGotoNextKey(kvVehicleSpawners, true));
+			}
+		}
+
+		delete kvVehicleSpawners;
+	}
 }
 
 // Sets the player model for vehicle passengers corresponding to his team and class.
@@ -2399,77 +2473,24 @@ public Action CommandListener_PlayerJoinTeam(int client, const char[] command, i
 
 public void EventHook_RoundStart(Event event, const char[] name, bool dontBroadcast)
 {
-	g_ExecRoundStartHookFunction = true; // On my side, it seems that RoundStart and RoundActive events hooks are called more than one time in DoDS. To prevent this, i check this boolean variable inside the hook function; the variable is set to false at the end of the RoundActive hook function.
+	switch (GetEngineVersion())
+	{
+		case Engine_DODS:
+		{
+			g_ExecRoundStartHookFunction = true; // On my side, it seems that RoundStart and RoundActive events hooks are called more than one time in DoDS. To prevent this, i check this boolean variable inside the hook function; the variable is set to false at the end of the RoundActive hook function.
+		}
+		case Engine_HL2DM:
+		{
+			ReadMapSpawnersFile();
+		}
+	}
 }
 
 public void EventHook_RoundActive(Event event, const char[] name, bool dontBroadcast)
 {
 	if (g_ExecRoundStartHookFunction)
 	{
-		// Spawn all the vehicles listed in map's related TXT file
-		KeyValues kvVehicleSpawners;
-		char currentLevelName[64];
-		char fileName[PLATFORM_MAX_PATH];
-		GetCurrentMap(currentLevelName, sizeof(currentLevelName));
-		Format(fileName, sizeof(fileName), VEHICLESPAWNERS_FILENAME_TEMPLATE, currentLevelName);
-
-		if (FileExists(fileName, false))
-		{
-			kvVehicleSpawners = CreateKeyValues("VehicleSpawners");
-			if (FileToKeyValues(kvVehicleSpawners, fileName))
-			{
-				g_VehicleSpawnerProperties.Clear();
-
-				char previousSectionName[64];
-				char currentSectionName[64];
-				char vehicleId[64];
-				float position[3];
-				float angles[3];
-				VehicleConfig vehicleConfig;
-
-				if (KvGotoFirstSubKey(kvVehicleSpawners, true))
-				{
-					do
-					{
-						KvGetSectionName(kvVehicleSpawners, currentSectionName, sizeof(currentSectionName));
-
-						if (!StrEqual(currentSectionName, previousSectionName))
-						{
-							KvGetString(kvVehicleSpawners, "id", vehicleId, sizeof(vehicleId));
-							KvGetVector(kvVehicleSpawners, "position", position);
-							KvGetVector(kvVehicleSpawners, "angles", angles);
-
-							if (GetConfigById(vehicleId, vehicleConfig))
-							{
-								position[2] = position[2] + 5.0;
-								angles[0] = 0.0;
-								angles[1] = angles[1] - 90.0;
-								angles[2] = 0.0;
-
-								int spawner = StringToInt(currentSectionName);
-								if (spawner == 0 && !StrEqual(currentSectionName, "0"))
-								{
-									spawner = -1;
-									LogError("Encountered an invalid spawner ID (\"%s\") during vehicles first spawn. It must be a number. The vehicle specified by this spawner ID will not be respawned if destroyed.", currentSectionName);
-								}
-								else
-								{
-									VehicleSpawner.Register(spawner, vehicleId, position, angles);
-								}
-
-								CreateVehicle(vehicleConfig, position, angles, -1, spawner);
-							}
-						}
-
-						strcopy(previousSectionName, sizeof(previousSectionName), currentSectionName);
-					}
-					while(KvGotoNextKey(kvVehicleSpawners, true));
-				}
-			}
-
-			delete kvVehicleSpawners;
-		}
-
+		ReadMapSpawnersFile();
 		g_ExecRoundStartHookFunction = false;
 	}
 }
