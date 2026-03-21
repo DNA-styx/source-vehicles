@@ -92,6 +92,8 @@ Handle g_SDKCallSetParent;
 ArrayList g_AllVehicles;
 ArrayList g_VehicleProperties;
 ArrayList g_VehicleSpawnerProperties;
+ArrayList g_VehicleSoundsFixers;
+bool g_IsFixingVehicleSounds;
 ArrayList g_ConVars;
 
 bool g_VehicleDamageDealerEnabled;
@@ -825,12 +827,13 @@ public void OnPluginStart()
 	g_AllVehicles = new ArrayList(sizeof(VehicleConfig));
 	g_VehicleProperties = new ArrayList(sizeof(VehicleProperties));
 	g_VehicleSpawnerProperties = new ArrayList(sizeof(VehicleSpawnerProperties));
+	g_VehicleSoundsFixers = new ArrayList(sizeof(VehicleSoundsFixerProperties));
 	g_ConVars = new ArrayList(sizeof(ConVarData));
 	
 	AddCommandListener(CommandListener_VoiceMenu, "voicemenu");
+	AddCommandListener(CommandListener_PlayerJoinTeam, "jointeam");
 
-	if (GetEngineVersion() == Engine_DODS)
-		AddCommandListener(CommandListener_PlayerJoinTeam, "jointeam");
+	AddNormalSoundHook(SoundHook_TrackBuggedVehicleSounds);
 
 	GameData gamedata = new GameData("vehicles");
 	if (!gamedata)
@@ -1873,14 +1876,49 @@ void SpawnExplosiveForVehicle(int vehicle)
 	}
 }
 
+bool FilterBuggedVehicleSound(char sample[PLATFORM_MAX_PATH])
+{
+	char gameSoundsFilter[][32] = { "ATV_engine_idle", "ATV_engine_start", "ATV_firstgear", "ATV_turbo_on", "ATV_throttleoff_slowspeed", "ATV_reverse" };
+	char sampleSoundFromGameSoundFilter[PLATFORM_MAX_PATH];
+
+	for (int i = 0; i < sizeof(gameSoundsFilter); i++)
+	{
+		int w, x; float y; int z;
+		GetGameSoundParams(gameSoundsFilter[i], w, x, y, z, sampleSoundFromGameSoundFilter, sizeof(sampleSoundFromGameSoundFilter));
+
+		if (StrEqual(sample, sampleSoundFromGameSoundFilter, false))
+			return true;
+	}
+
+	return false;
+}
+
 void StopBuggedSoundsFromVehicle(int vehicle)
 {
-	EmitGameSoundToAll("ATV_engine_idle", vehicle, SND_STOP | SND_STOPLOOPING);
-	EmitGameSoundToAll("ATV_engine_start", vehicle, SND_STOP | SND_STOPLOOPING);
-	EmitGameSoundToAll("ATV_firstgear", vehicle, SND_STOP | SND_STOPLOOPING);
-	EmitGameSoundToAll("ATV_turbo_on", vehicle, SND_STOP | SND_STOPLOOPING);
-	EmitGameSoundToAll("ATV_throttleoff_slowspeed", vehicle, SND_STOP | SND_STOPLOOPING);
-	EmitGameSoundToAll("ATV_reverse", vehicle, SND_STOP | SND_STOPLOOPING);
+	g_IsFixingVehicleSounds = true;
+
+	int index;
+	VehicleSoundsFixerProperties soundFixerEntry;
+
+	do
+	{
+		index = g_VehicleSoundsFixers.FindValue(vehicle, VehicleSoundsFixerProperties::vehicle);
+		if (index != -1)
+		{
+			if (g_VehicleSoundsFixers.GetArray(index, soundFixerEntry) > 0)
+			{
+				for (int i = 1; i <= soundFixerEntry.amountEmitted; i++)
+				{
+					EmitSoundToAll(soundFixerEntry.soundName, vehicle, soundFixerEntry.soundChannel, _, SND_STOP | SND_STOPLOOPING);
+				}
+
+				g_VehicleSoundsFixers.Erase(index);
+			}
+		}
+	}
+	while(index != -1);
+
+	g_IsFixingVehicleSounds = false;
 }
 
 void RequestFrameCallback_LeaveVehicle(int exDriver)
@@ -2802,6 +2840,75 @@ public void SDKHookCB_VehicleDamageDealer_TouchPost(int entity, int other)
 			}
 		}
 	}
+}
+
+public Action SoundHook_TrackBuggedVehicleSounds(int clients[MAXPLAYERS], int &numClients, char sample[PLATFORM_MAX_PATH], int &entity, int &channel, float &volume, int &level, int &pitch, int &flags, char soundEntry[PLATFORM_MAX_PATH], int &seed)
+{
+	if (!g_IsFixingVehicleSounds)
+	{
+		if (IsEntityVehicle(entity))
+		{	
+			if (FilterBuggedVehicleSound(sample))
+			{
+				VehicleSoundsFixerProperties soundFixerEntry;
+				int i;
+				int length = g_VehicleSoundsFixers.Length;
+
+				if (flags & SND_STOP)
+				{
+					for (i = 0; i < length; i++)
+					{
+						if (g_VehicleSoundsFixers.GetArray(i, soundFixerEntry) > 0)
+						{
+							if (soundFixerEntry.vehicle == entity && StrEqual(soundFixerEntry.soundName, sample, false))
+							{
+								soundFixerEntry.amountEmitted--;
+								if (soundFixerEntry.amountEmitted == 0)
+								{
+									g_VehicleSoundsFixers.Erase(i);
+								}
+								else
+								{
+									g_VehicleSoundsFixers.SetArray(i, soundFixerEntry);
+									break;
+								}
+							}
+						}
+					}
+				}	
+				else
+				{
+					if (StrContains(sample, "stop", false) == -1)
+					{
+						for (i = 0; i < length; i++)
+						{
+							if (g_VehicleSoundsFixers.GetArray(i, soundFixerEntry) > 0)
+							{
+								if (soundFixerEntry.vehicle == entity && StrEqual(soundFixerEntry.soundName, sample, false))
+								{
+									soundFixerEntry.amountEmitted++;
+									g_VehicleSoundsFixers.SetArray(i, soundFixerEntry);
+									break;
+								}
+							}
+						}
+
+						if (i >= length)
+						{
+							soundFixerEntry.vehicle = entity;
+							soundFixerEntry.soundName = sample;
+							soundFixerEntry.soundChannel = channel;
+							soundFixerEntry.amountEmitted = 1;
+
+							g_VehicleSoundsFixers.PushArray(soundFixerEntry);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return Plugin_Continue;
 }
 
 //-----------------------------------------------------------------------------
