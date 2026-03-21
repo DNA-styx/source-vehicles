@@ -1521,6 +1521,19 @@ void ReadMapSpawnersFile()
 	}
 }
 
+bool IsClientStanding(int client)
+{
+	float mins[3];
+	float maxs[3];
+	GetClientMins(client, mins);
+	GetClientMaxs(client, maxs);
+	
+	if (GetVectorDistance(g_PlayerMins, mins) == 0.0 && GetVectorDistance(g_PlayerMaxs, maxs) == 0.0)
+		return true;
+	else
+		return false;
+}
+
 // Sets the player model for vehicle passengers corresponding to his team and class.
 void SetPassengerModelForVehicle(int entity, int client, char passengerTypeName[16], VehicleConfig vehicleConfig)
 {
@@ -2617,9 +2630,12 @@ public Action SDKHookCB_PropVehicleDriveable_Use(int vehicle, int activator, int
 			int shooter = Vehicle(vehicle).Shooter;
 			if (driver != -1 && shooter <= 0)
 			{
-				if (GetShooterInVehicle(activator, vehicle))
+				if (IsClientStanding(activator))
 				{
-					return Plugin_Handled;
+					if (GetShooterInVehicle(activator, vehicle))
+					{
+						return Plugin_Handled;
+					}
 				}
 			}
 			else if (shooter > 0 && shooter == activator)
@@ -3351,40 +3367,36 @@ public MRESReturn DHookCallback_HandlePassengerEntryPre(Address serverVehicle, D
 	if (!vehicle_enable_entry_exit_anims.BoolValue)
 	{
 		int client = params.Get(1);
-		int vehicle = SDKCall_GetVehicleEnt(serverVehicle);
-		
-		if (CanEnterVehicle(client, vehicle))	// CPropVehicleDriveable::CanEnterVehicle
+
+		if (IsClientStanding(client))
 		{
-			if (SDKCall_CanEnterVehicle(client, serverVehicle, VEHICLE_ROLE_DRIVER))	//CBasePlayer::CanEnterVehicle
+			int vehicle = SDKCall_GetVehicleEnt(serverVehicle);
+			
+			if (CanEnterVehicle(client, vehicle))	// CPropVehicleDriveable::CanEnterVehicle
 			{
-				Player(client).VehicleIsInAsDriver = vehicle;
-				SDKCall_GetInVehicle(client, serverVehicle, VEHICLE_ROLE_DRIVER);
-				
-				float origin[3];
-				float angles[3];
+				if (SDKCall_CanEnterVehicle(client, serverVehicle, VEHICLE_ROLE_DRIVER))	//CBasePlayer::CanEnterVehicle
+				{
+					Player(client).VehicleIsInAsDriver = vehicle;
+					SDKCall_GetInVehicle(client, serverVehicle, VEHICLE_ROLE_DRIVER);
+					
+					float origin[3];
+					float angles[3];
 
-				if (GetEngineVersion() != Engine_DODS)
-				{
-					if (SDKCall_GetAttachmentLocal(vehicle, LookupEntityAttachment(vehicle, "vehicle_driver_eyes"), origin, angles))
-						TeleportEntity(client, .angles = angles); // Snap the driver's view where the vehicle is facing
-				}		
-				else
-				{
-					if (SDKCall_GetAttachmentLocal(vehicle, LookupEntityAttachment(vehicle, "vehicle_driver_feet"), origin, angles))
+					if (GetEngineVersion() != Engine_DODS)
 					{
-						/*
-						float vecLeftDirection[3];
-						GetAngleVectors(angles, NULL_VECTOR, vecLeftDirection, NULL_VECTOR);
-						NegateVector(vecLeftDirection);
-						ScaleVector(vecLeftDirection, 5.0);
-						AddVectors(origin, vecLeftDirection, origin);
-						*/
-						TeleportEntity(client, origin, angles); // Snap the driver's view where the vehicle is facing, and snap the driver's position to the driving seat so that the shooter passenger doesn't collide with him causing the vehicle to accelerate
-
+						if (SDKCall_GetAttachmentLocal(vehicle, LookupEntityAttachment(vehicle, "vehicle_driver_eyes"), origin, angles))
+							TeleportEntity(client, .angles = angles); // Snap the driver's view where the vehicle is facing
+					}		
+					else
+					{
+						if (SDKCall_GetAttachmentLocal(vehicle, LookupEntityAttachment(vehicle, "vehicle_driver_feet"), origin, angles))
+						{
+							TeleportEntity(client, origin, angles); // Snap the driver's view where the vehicle is facing, and snap the driver's position to the driving seat.
+						}
 					}
+					
+					CreateTimer(1.5, Timer_PrintVehicleKeyHint, EntIndexToEntRef(vehicle));
 				}
-				
-				CreateTimer(1.5, Timer_PrintVehicleKeyHint, EntIndexToEntRef(vehicle));
 			}
 		}
 		
