@@ -102,8 +102,8 @@ bool g_ExecRoundStartHookFunction;
 char g_VehicleExplosionSoundName[32];
 char g_DefaultPlayerModels[2][6][PLATFORM_MAX_PATH];
 float g_DefaultPlayerViewOffset[] = { 0.0, 0.0, 54.0 };
-float g_playerMins[] = {-16.0, -16.0, -36.0};
-float g_playerMaxs[] = {16.0, 16.0, 36.0};
+float g_PlayerMins[3];
+float g_PlayerMaxs[3];
 
 char g_PlayerModelTeamName[2][PLATFORM_MAX_PATH];
 char g_PlayerModelClassName[6][PLATFORM_MAX_PATH];
@@ -967,6 +967,9 @@ public void OnClientPutInServer(int client)
 
 	HookEvent("player_team", EventCallback_PlayerTeam, EventHookMode_Post);
 	HookEvent("player_death", EventCallback_PlayerDeath, EventHookMode_Pre);
+
+	GetClientMins(client, g_PlayerMins);
+	GetClientMaxs(client, g_PlayerMaxs);
 }
 
 public void OnClientDisconnect(int client)
@@ -1668,7 +1671,7 @@ void GetShooterOutFromVehicle(int shooter, bool forced)
 					GetConfigByVehicleEnt(vehicle, vehicleConfig);
 
 					float exitPoint[3];
-					bool IsExitPointFound = CheckExitPoint(vecVehicleExitOrigin, vecVehicleExitAngles, g_playerMins, g_playerMaxs, vehicleConfig.are_exitpoints_eyes, exitPoint);
+					bool IsExitPointFound = CheckExitPoint(vecVehicleExitOrigin, vecVehicleExitAngles, g_PlayerMins, g_PlayerMaxs, vehicleConfig.are_exitpoints_eyes, exitPoint);
 					if (IsExitPointFound || forced)
 					{
 						AcceptEntityInput(shooter, "ClearParent");
@@ -1926,7 +1929,7 @@ void RequestFrameCallback_LeaveVehicle(int exDriver)
 				}
 
 				float exitPoint[3];
-				bool IsExitPointFound = CheckExitPoint(vehicleExitOrigin, vehicleExitAngles, g_playerMins, g_playerMaxs, vehicleConfig.are_exitpoints_eyes, exitPoint);
+				bool IsExitPointFound = CheckExitPoint(vehicleExitOrigin, vehicleExitAngles, g_PlayerMins, g_PlayerMaxs, vehicleConfig.are_exitpoints_eyes, exitPoint);
 				if (IsExitPointFound)
 				{			
 					exitPoint[2] = exitPoint[2] + 12.0;
@@ -2785,7 +2788,7 @@ public void SDKHookCB_VehicleDamageDealer_TouchPost(int entity, int other)
 							GetConfigByVehicleEnt(vehicle, vehicleConfig);
 
 							float exitPoint[3];
-							bool IsExitPointFound = CheckExitPoint(vecVehicleExitOrigin, vecVehicleExitAngles, g_playerMins, g_playerMaxs, vehicleConfig.are_exitpoints_eyes, exitPoint);
+							bool IsExitPointFound = CheckExitPoint(vecVehicleExitOrigin, vecVehicleExitAngles, g_PlayerMins, g_PlayerMaxs, vehicleConfig.are_exitpoints_eyes, exitPoint);
 							if (IsExitPointFound)
 							{
 								exitPoint[2] = exitPoint[2] + 12.0;
