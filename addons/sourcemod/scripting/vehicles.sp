@@ -827,13 +827,18 @@ public void OnPluginStart()
 	g_AllVehicles = new ArrayList(sizeof(VehicleConfig));
 	g_VehicleProperties = new ArrayList(sizeof(VehicleProperties));
 	g_VehicleSpawnerProperties = new ArrayList(sizeof(VehicleSpawnerProperties));
-	g_VehicleSoundsFixers = new ArrayList(sizeof(VehicleSoundsFixerProperties));
 	g_ConVars = new ArrayList(sizeof(ConVarData));
 	
-	AddCommandListener(CommandListener_VoiceMenu, "voicemenu");
-	AddCommandListener(CommandListener_PlayerJoinTeam, "jointeam");
+	if (GetEngineVersion() == Engine_TF2)
+		AddCommandListener(CommandListener_VoiceMenu, "voicemenu");
 
-	AddNormalSoundHook(SoundHook_TrackBuggedVehicleSounds);
+	if (GetEngineVersion() == Engine_DODS)
+	{
+		AddCommandListener(CommandListener_PlayerJoinTeam, "jointeam");
+
+		g_VehicleSoundsFixers = new ArrayList(sizeof(VehicleSoundsFixerProperties));
+		AddNormalSoundHook(SoundHook_TrackBuggedVehicleSounds);
+	}
 
 	GameData gamedata = new GameData("vehicles");
 	if (!gamedata)
