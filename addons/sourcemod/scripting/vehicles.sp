@@ -1034,15 +1034,6 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					EmitSoundToAll(config.horn_sound, vehicle, SNDCHAN_STATIC, SNDLEVEL_AIRCRAFT, SND_STOP | SND_STOPLOOPING);
 				}
 			}
-			
-			if (GetEngineVersion() == Engine_DODS) // Prevents handbrake use in DoDS since it crashes the server.
-			{
-				if (buttons & IN_JUMP)
-				{
-					buttons = buttons & ~(buttons & IN_JUMP);
-					actionToReturn = Plugin_Changed;
-				}				
-			}
 		}
 	}
 	
