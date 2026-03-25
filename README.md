@@ -6,6 +6,7 @@ multiplayer games.
 **List of supported games:**
 
 * Day of Defeat: Source
+* Half-Life 2: Deathmatch
 
 This plugin bundles the required entity fixes, and a few configurable nice-to-have features.
 
@@ -111,7 +112,6 @@ recommended** to keep the animations disabled.
 1. MGs can't be deployed while being on or inside a car.
 2. Nades and rockets launching is disabled for car passengers to avoid some still unresolved glitch.
 3. Entering and exiting a vehicle could get the player looking to a different direction.
-4. Vehicles sounds sometimes keep looping even if you are not driving them or if they are despawned/destroyed. Use `snd_restart` on your client console to temporarily fix it (thanks to TVoLk for the tip).
 
 ## Credits
 
