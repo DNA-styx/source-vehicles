@@ -1904,30 +1904,33 @@ bool FilterBuggedVehicleSound(char sample[PLATFORM_MAX_PATH])
 
 void StopBuggedSoundsFromVehicle(int vehicle)
 {
-	g_IsFixingVehicleSounds = true;
-
-	int index;
-	VehicleSoundsFixerProperties soundFixerEntry;
-
-	do
+	if (GetEngineVersion() == Engine_DODS)
 	{
-		index = g_VehicleSoundsFixers.FindValue(vehicle, VehicleSoundsFixerProperties::vehicle);
-		if (index != -1)
-		{
-			if (g_VehicleSoundsFixers.GetArray(index, soundFixerEntry) > 0)
-			{
-				for (int i = 1; i <= soundFixerEntry.amountEmitted; i++)
-				{
-					EmitSoundToAll(soundFixerEntry.soundName, vehicle, soundFixerEntry.soundChannel, _, SND_STOP | SND_STOPLOOPING);
-				}
+		g_IsFixingVehicleSounds = true;
 
-				g_VehicleSoundsFixers.Erase(index);
+		int index;
+		VehicleSoundsFixerProperties soundFixerEntry;
+
+		do
+		{
+			index = g_VehicleSoundsFixers.FindValue(vehicle, VehicleSoundsFixerProperties::vehicle);
+			if (index != -1)
+			{
+				if (g_VehicleSoundsFixers.GetArray(index, soundFixerEntry) > 0)
+				{
+					for (int i = 1; i <= soundFixerEntry.amountEmitted; i++)
+					{
+						EmitSoundToAll(soundFixerEntry.soundName, vehicle, soundFixerEntry.soundChannel, _, SND_STOP | SND_STOPLOOPING);
+					}
+
+					g_VehicleSoundsFixers.Erase(index);
+				}
 			}
 		}
-	}
-	while(index != -1);
+		while(index != -1);
 
-	g_IsFixingVehicleSounds = false;
+		g_IsFixingVehicleSounds = false;
+	}
 }
 
 void RequestFrameCallback_LeaveVehicle(int exDriver)
