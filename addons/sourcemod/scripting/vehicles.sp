@@ -2859,11 +2859,16 @@ public void SDKHookCB_VehicleDamageDealer_TouchPost(int entity, int other)
 
 public Action SoundHook_TrackBuggedVehicleSounds(int clients[MAXPLAYERS], int &numClients, char sample[PLATFORM_MAX_PATH], int &entity, int &channel, float &volume, int &level, int &pitch, int &flags, char soundEntry[PLATFORM_MAX_PATH], int &seed)
 {
+	// Attempt to fix vehicle looping sounds erroneously emitted from players
+	bool IsBuggedSound = FilterBuggedVehicleSound(sample);
+	if (IsEntityClient(entity) && IsBuggedSound)
+		return Plugin_Handled;
+	
 	if (!g_IsFixingVehicleSounds)
 	{
 		if (IsEntityVehicle(entity))
 		{	
-			if (FilterBuggedVehicleSound(sample))
+			if (IsBuggedSound)
 			{
 				VehicleSoundsFixerProperties soundFixerEntry;
 				int i;
