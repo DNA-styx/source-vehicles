@@ -38,6 +38,11 @@
 		"en"		"Spawn new vehicle"
 	}
 	
+	"#Menu_Item_PlaceSpawner"
+	{
+		"en"		"Place a new vehicle spawner here"
+	}
+	
 	"#Menu_Item_RemoveAimTargetVehicle"
 	{
 		"en"		"Remove vehicle at crosshair"
