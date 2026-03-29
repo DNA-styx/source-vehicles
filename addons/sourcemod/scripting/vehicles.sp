@@ -1611,14 +1611,9 @@ bool CheckExitPoint(float vecStartPosition[3], float vecStartAngles[3], float ve
 	float vecTraceStartOffset[] = {0.0, 0.0, 0.0};
 	float vecTraceStart[3];
 	float vecTraceEnd[3];
-	Handle trace;
 	bool traceDidHit;
 	bool exitPointFound = false;
-	
-	soldierHeight = (vecSoldierMaxs[2] - vecSoldierMins[2]);
-	soldierWidth = (vecSoldierMaxs[0] - vecSoldierMins[0]);
-	
-	vecTraceStartOffset[2] = (soldierHeight / 2);
+
 	if (areExitpointsEyes)
 	{
 		float vecViewOffsetApplier[3];
@@ -1628,11 +1623,14 @@ bool CheckExitPoint(float vecStartPosition[3], float vecStartAngles[3], float ve
 		AddVectors(vecTraceStartOffset, vecViewOffsetApplier, vecTraceStartOffset);
 	}
 
+	soldierHeight = (vecSoldierMaxs[2] - vecSoldierMins[2]);
+	soldierWidth = (vecSoldierMaxs[0] - vecSoldierMins[0]);
+
 	GetAngleVectors(vecStartAngles, vecVehicleBackwardDirection, NULL_VECTOR, vecVehicleUpDirection);
 	NegateVector(vecVehicleBackwardDirection);
 	ScaleVector(vecVehicleUpDirection, (soldierHeight + 8.0));
 	ScaleVector(vecVehicleBackwardDirection, (soldierWidth + 8.0));
-	
+
 	vecObstructionCheckPosition = vecStartPosition;
 	for (int i = 1; i <= 8; i++)
 	{
@@ -1643,7 +1641,7 @@ bool CheckExitPoint(float vecStartPosition[3], float vecStartAngles[3], float ve
 		}
 		
 		AddVectors(vecObstructionCheckPosition, vecTraceStartOffset, vecTraceStart);
-		AddVectors(vecTraceStart, {0.0, 0.0, 1.0}, vecTraceEnd);
+		AddVectors(vecTraceStart, {0.0, 0.0, -2.0}, vecTraceEnd);
 		TR_TraceHull(vecTraceStart, vecTraceEnd, vecSoldierMins, vecSoldierMaxs, MASK_PLAYERSOLID);
 		traceDidHit = TR_DidHit(INVALID_HANDLE);
 		
@@ -1656,11 +1654,9 @@ bool CheckExitPoint(float vecStartPosition[3], float vecStartAngles[3], float ve
 		else
 		{
 			AddVectors(vecObstructionCheckPosition, vecVehicleBackwardDirection, vecObstructionCheckPosition);
-			CloseHandle(trace);
 		}
 	}
 	
-	CloseHandle(trace);
 	return exitPointFound;
 }
 
@@ -1735,13 +1731,15 @@ void SpawnDamageDealerForVehicle(int vehicle, VehicleConfig vehicleConfig)
 					DispatchKeyValueVector(newEntity, "angles", vehicleAngles);
 					DispatchKeyValueInt(newEntity, "solid", 0);
 					SetEntProp(newEntity, Prop_Data, "m_usSolidFlags", (4+8));
-					SetEntityRenderMode(newEntity, RENDER_NONE);
 
 					if (DispatchSpawn(newEntity))
 					{
 						SetEntityMoveType(newEntity, MOVETYPE_FLY);
 						SetVariantString("!activator");
 						AcceptEntityInput(newEntity, "SetParent", vehicle); //SDKCall_SetParent(newEntity, vehicle, 0);
+						SetEntityRenderMode(newEntity, RENDER_TRANSALPHA);
+						SetEntityRenderColor(newEntity, _, _, _, 1);
+
 						SDKHook(newEntity, SDKHook_StartTouchPost, SDKHookCB_VehicleDamageDealer_StartTouchPost);
 						SDKHook(newEntity, SDKHook_TouchPost, SDKHookCB_VehicleDamageDealer_TouchPost);
 
@@ -1962,12 +1960,13 @@ void RequestFrameCallback_LeaveVehicle(int exDriver)
 		// Teleport the player who is leaving the vehicle basing on the alternate CheckExitPoint function
 		float vehicleExitOrigin[3];
 		float vehicleExitAngles[3];
-		char attachments[][64] = {"exit1", "exit2"};
+		char attachments[][8] = {"exit1", "exit2"};
 
 		for (int i = 0; i < sizeof(attachments); i++)
 		{
 			if (GetEntityAttachment(vehicle, LookupEntityAttachment(vehicle, attachments[i]), vehicleExitOrigin, vehicleExitAngles))
-			{				
+			{			
+				/*	
 				if (i == 0)
 				{
 					// Offset exit position by an amout which avoids the player colliding with the vehicle
@@ -1977,6 +1976,7 @@ void RequestFrameCallback_LeaveVehicle(int exDriver)
 					ScaleVector(vehicleDirectionLeft, 16.0);
 					AddVectors(vehicleExitOrigin, vehicleDirectionLeft, vehicleExitOrigin);
 				}
+				*/
 
 				float exitPoint[3];
 				bool IsExitPointFound = CheckExitPoint(vehicleExitOrigin, vehicleExitAngles, g_PlayerMins, g_PlayerMaxs, vehicleConfig.are_exitpoints_eyes, exitPoint);
