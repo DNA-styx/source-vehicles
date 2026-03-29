@@ -2768,7 +2768,7 @@ public Action SDKHookCB_DummyDriver_OnTakeDamage(int entity, int &attacker, int 
 
 public Action SDKHookCB_DummyDriver_SetTransmit(int entity, int client)
 {
-	char strDriver[2];
+	char strDriver[8];
 	GetEntPropString(entity, Prop_Data, "m_iName", strDriver, sizeof(strDriver));
 	int driver = StringToInt(strDriver);
 
