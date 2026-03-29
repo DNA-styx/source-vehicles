@@ -1860,7 +1860,7 @@ void SpawnExplosiveForVehicle(int vehicle)
 			SetVariantString("!activator");
 			AcceptEntityInput(explosive, "SetParent", vehicle);
 
-			char attachmentName[][] = { "explosion", "vehicle_engine" };
+			char attachmentName[][16] = { "explosion", "vehicle_engine" };
 			int indexAttachmentName = -1;
 			for (int i = 0; i < sizeof(attachmentName); i++)
 			{
@@ -2627,7 +2627,7 @@ public Action SDKHookCB_PropVehicleDriveable_Use(int vehicle, int activator, int
 		else
 		{	
 			int shooter = Vehicle(vehicle).Shooter;
-			if (driver != -1 && shooter <= 0)
+			if (driver != -1 && shooter == -1)
 			{
 				if (IsClientStanding(activator))
 				{
@@ -2637,7 +2637,7 @@ public Action SDKHookCB_PropVehicleDriveable_Use(int vehicle, int activator, int
 					}
 				}
 			}
-			else if (shooter > 0 && shooter == activator)
+			else if (shooter != -1 && shooter == activator)
 			{
 				GetShooterOutFromVehicle(activator, false);
 				
@@ -2938,7 +2938,7 @@ public Action EventCallback_PlayerDeath(Event event, const char[] name, bool don
 	{
 		client = GetClientOfUserId(client);
 		
-		if (Player(client).VehicleIsInAsShooter > 0)
+		if (Player(client).VehicleIsInAsShooter != -1)
 		{	
 			GetShooterOutFromVehicle(client, true);
 		}
