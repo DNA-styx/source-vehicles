@@ -2757,7 +2757,7 @@ public Action SDKHookCB_DummyDriver_OnTakeDamage(int entity, int &attacker, int 
 		{
 			int driver = GetEntPropEnt(parent, Prop_Send, "m_hPlayer");
 			if (driver != -1)
-				SDKHooks_TakeDamage(driver, inflictor, attacker, damage * vehicle_passenger_damage_modifier.FloatValue, damagetype, weapon, damageForce, NULL_VECTOR, true);
+				SDKHooks_TakeDamage(driver, inflictor, attacker, damage, damagetype, weapon, damageForce, NULL_VECTOR, true);
 		}
 	}
 	
