@@ -2626,22 +2626,31 @@ public Action SDKHookCB_PropVehicleDriveable_Use(int vehicle, int activator, int
 			return Plugin_Handled;
 		else
 		{	
+			float vehicleVelocity[3];
+			GetEntPropVector(vehicle, Prop_Data, "m_vecSmoothedVelocity", vehicleVelocity);
+			float vehicleSpeed = GetVectorLength(vehicleVelocity, false);
+
 			int shooter = Vehicle(vehicle).Shooter;
 			if (driver != -1 && shooter == -1)
 			{
 				if (IsClientStanding(activator))
 				{
-					if (GetShooterInVehicle(activator, vehicle))
+					if (vehicleSpeed <= GetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit"))
 					{
-						return Plugin_Handled;
+						if (GetShooterInVehicle(activator, vehicle))
+						{
+							return Plugin_Handled;
+						}
 					}
 				}
 			}
 			else if (shooter != -1 && shooter == activator)
 			{
-				GetShooterOutFromVehicle(activator, false);
-				
-				return Plugin_Handled;
+				if (vehicleSpeed <= GetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit"))
+				{
+					GetShooterOutFromVehicle(activator, false);
+					return Plugin_Handled;
+				}
 			}
 		}
 
@@ -2863,7 +2872,7 @@ public Action SoundHook_TrackBuggedVehicleSounds(int clients[MAXPLAYERS], int &n
 	bool IsBuggedSound = FilterBuggedVehicleSound(sample);
 	if (IsEntityClient(entity) && IsBuggedSound)
 		return Plugin_Handled;
-	
+
 	if (!g_IsFixingVehicleSounds)
 	{
 		if (IsEntityVehicle(entity))
