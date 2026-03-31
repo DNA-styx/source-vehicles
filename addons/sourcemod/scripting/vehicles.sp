@@ -92,8 +92,6 @@ Handle g_SDKCallSetParent;
 ArrayList g_AllVehicles;
 ArrayList g_VehicleProperties;
 ArrayList g_VehicleSpawnerProperties;
-ArrayList g_VehicleSoundsFixers;
-bool g_IsFixingVehicleSounds;
 ArrayList g_ConVars;
 
 bool g_VehicleDamageDealerEnabled;
@@ -106,6 +104,7 @@ char g_DefaultPlayerModels[2][6][PLATFORM_MAX_PATH];
 float g_DefaultPlayerViewOffset[] = { 0.0, 0.0, 54.0 };
 float g_PlayerMins[3];
 float g_PlayerMaxs[3];
+char g_BuggedVehicleGameSounds[][32] = { "ATV_engine_idle", "ATV_engine_start", "ATV_firstgear", "ATV_turbo_on", "ATV_throttleoff_slowspeed", "ATV_reverse" };
 
 char g_PlayerModelTeamName[2][PLATFORM_MAX_PATH];
 char g_PlayerModelClassName[6][PLATFORM_MAX_PATH];
@@ -836,8 +835,8 @@ public void OnPluginStart()
 	{
 		AddCommandListener(CommandListener_PlayerJoinTeam, "jointeam");
 
-		g_VehicleSoundsFixers = new ArrayList(sizeof(VehicleSoundsFixerProperties));
 		AddNormalSoundHook(SoundHook_TrackBuggedVehicleSounds);
+		CreateTimer(2.0, Timer_FixVehiclesBuggedSounds, _, TIMER_REPEAT);
 	}
 
 	GameData gamedata = new GameData("vehicles");
@@ -1149,7 +1148,7 @@ int CreateVehicleNoSpawn(VehicleConfig config, float origin[3], float angles[3],
 	Vehicle(vehicle).Owner = owner;
 	Vehicle(vehicle).Spawner = spawner;
 
-	return vehicle;	
+	return vehicle;
 }
 
 bool GetClientViewPos(int client, int entity, int mask, float position[3], float angles[3])
@@ -1900,37 +1899,6 @@ bool FilterBuggedVehicleSound(char sample[PLATFORM_MAX_PATH])
 	return false;
 }
 
-void StopBuggedSoundsFromVehicle(int vehicle)
-{
-	if (GetEngineVersion() == Engine_DODS)
-	{
-		g_IsFixingVehicleSounds = true;
-
-		int index;
-		VehicleSoundsFixerProperties soundFixerEntry;
-
-		do
-		{
-			index = g_VehicleSoundsFixers.FindValue(vehicle, VehicleSoundsFixerProperties::vehicle);
-			if (index != -1)
-			{
-				if (g_VehicleSoundsFixers.GetArray(index, soundFixerEntry) > 0)
-				{
-					for (int i = 1; i <= soundFixerEntry.amountEmitted; i++)
-					{
-						EmitSoundToAll(soundFixerEntry.soundName, vehicle, soundFixerEntry.soundChannel, _, SND_STOP | SND_STOPLOOPING);
-					}
-
-					g_VehicleSoundsFixers.Erase(index);
-				}
-			}
-		}
-		while(index != -1);
-
-		g_IsFixingVehicleSounds = false;
-	}
-}
-
 void RequestFrameCallback_LeaveVehicle(int exDriver)
 {
 	int vehicle = Player(exDriver).VehicleIsInAsDriver;
@@ -1993,7 +1961,6 @@ void RequestFrameCallback_LeaveVehicle(int exDriver)
 		}
 		
 		CreateTimer(0.5, Timer_LeaveVehicle, exDriver, TIMER_FLAG_NO_MAPCHANGE);
-		CreateTimer(1.5, Timer_StopVehicleBuggedSounds, vehicle, TIMER_FLAG_NO_MAPCHANGE);
 	}
 }
 
@@ -2001,11 +1968,6 @@ void Timer_LeaveVehicle(Handle timer, int exDriver)
 {
 	if (!IsFakeClient(exDriver))
 		SendConVarValue(exDriver, FindConVar("sv_client_predict"), "1");
-}
-
-void Timer_StopVehicleBuggedSounds(Handle timer, int vehicle)
-{
-	StopBuggedSoundsFromVehicle(vehicle);
 }
 
 //-----------------------------------------------------------------------------
@@ -2228,6 +2190,28 @@ public void Timer_VehicleRespawner(Handle timer, int vehicle)
 			}
 		}
 	}
+}
+
+public Action Timer_FixVehiclesBuggedSounds(Handle timer)
+{
+	int channel, x; float y; int z;
+	char sample[PLATFORM_MAX_PATH];
+
+	int vehicle = -1;
+	while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
+	{
+		int driver = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
+		if (driver == -1)
+		{
+			for (int i = 0; i < sizeof(g_BuggedVehicleGameSounds); i++)
+			{
+				GetGameSoundParams(g_BuggedVehicleGameSounds[i], channel, x, y, z, sample, sizeof(sample));
+				EmitSoundToAll(sample, vehicle, channel, _, SND_STOP | SND_STOPLOOPING);
+			}
+		}
+	}
+
+	return Plugin_Continue;
 }
 
 public void RequestFrameCallback_DestroyVehicle(int entity)
@@ -2710,7 +2694,6 @@ public void SDKHookCB_PropVehicleDriveable_OnTakeDamagePost(int victim, int atta
 
 				AcceptEntityInput(victim, "TurnOff");
 				AcceptEntityInput(victim, "Lock");
-				StopBuggedSoundsFromVehicle(victim);
 
 				CreateTimer(15.0, Timer_VehicleRespawner, victim, TIMER_FLAG_NO_MAPCHANGE);
 			}
@@ -2873,6 +2856,7 @@ public Action SoundHook_TrackBuggedVehicleSounds(int clients[MAXPLAYERS], int &n
 	if (IsEntityClient(entity) && IsBuggedSound)
 		return Plugin_Handled;
 
+	/*
 	if (!g_IsFixingVehicleSounds)
 	{
 		if (IsEntityVehicle(entity))
@@ -2904,7 +2888,7 @@ public Action SoundHook_TrackBuggedVehicleSounds(int clients[MAXPLAYERS], int &n
 							}
 						}
 					}
-				}	
+				}
 				else
 				{
 					if (StrContains(sample, "stop", false) == -1)
@@ -2936,6 +2920,7 @@ public Action SoundHook_TrackBuggedVehicleSounds(int clients[MAXPLAYERS], int &n
 			}
 		}
 	}
+	*/
 
 	return Plugin_Continue;
 }
