@@ -1899,77 +1899,6 @@ bool FilterBuggedVehicleSound(char sample[PLATFORM_MAX_PATH])
 	return false;
 }
 
-void RequestFrameCallback_LeaveVehicle(int exDriver)
-{
-	int vehicle = Player(exDriver).VehicleIsInAsDriver;
-
-	Player(exDriver).VehicleIsInAsDriver = -1;
-
-	if (Vehicle(vehicle).DummyDriver != -1)
-	{
-		AcceptEntityInput(Vehicle(vehicle).DummyDriver, "ClearParent");
-		RemoveEntity(Vehicle(vehicle).DummyDriver);
-		Vehicle(vehicle).DummyDriver = -1;
-	}
-
-	if (IsValidEdict(exDriver)) // Needed to avoid an error message in the server log if a player is in the vehicle during server's shutdown
-	{
-		VehicleConfig vehicleConfig;
-		GetConfigByVehicleEnt(vehicle, vehicleConfig);
-
-		if (vehicleConfig.is_passenger_visible)
-		{
-			SetEntityRenderColor(exDriver, 255, 255, 255, 255);
-			SetEntityRenderMode(exDriver, RENDER_NORMAL);
-			DispatchKeyValueInt(exDriver, "solid", 2);
-			RevertClientModelToDefault(exDriver);
-		}
-
-		// Teleport the player who is leaving the vehicle basing on the alternate CheckExitPoint function
-		float vehicleExitOrigin[3];
-		float vehicleExitAngles[3];
-		char attachments[][8] = {"exit1", "exit2"};
-
-		for (int i = 0; i < sizeof(attachments); i++)
-		{
-			if (GetEntityAttachment(vehicle, LookupEntityAttachment(vehicle, attachments[i]), vehicleExitOrigin, vehicleExitAngles))
-			{			
-				/*	
-				if (i == 0)
-				{
-					// Offset exit position by an amout which avoids the player colliding with the vehicle
-					float vehicleDirectionLeft[3];
-					GetAngleVectors(vehicleExitAngles, NULL_VECTOR, vehicleDirectionLeft, NULL_VECTOR);
-					NegateVector(vehicleDirectionLeft);
-					ScaleVector(vehicleDirectionLeft, 16.0);
-					AddVectors(vehicleExitOrigin, vehicleDirectionLeft, vehicleExitOrigin);
-				}
-				*/
-
-				float exitPoint[3];
-				bool IsExitPointFound = CheckExitPoint(vehicleExitOrigin, vehicleExitAngles, g_PlayerMins, g_PlayerMaxs, vehicleConfig.are_exitpoints_eyes, exitPoint);
-				if (IsExitPointFound)
-				{			
-					exitPoint[2] = exitPoint[2] + 12.0;
-					vehicleExitAngles[2] = 0.0;
-					TeleportEntity(exDriver, exitPoint, vehicleExitAngles, NULL_VECTOR);
-					break;
-				}
-			}
-			else
-				LogError("Missing '%s' attachment on vehicle %i", attachments[i], vehicle);
-		}
-		
-		CreateTimer(0.5, Timer_LeaveVehicle, exDriver, TIMER_FLAG_NO_MAPCHANGE);
-	}
-}
-
-void Timer_LeaveVehicle(Handle timer, int exDriver)
-{
-	if (!IsFakeClient(exDriver))
-		SendConVarValue(exDriver, FindConVar("sv_client_predict"), "1");
-}
-
 //-----------------------------------------------------------------------------
 // Natives
 //-----------------------------------------------------------------------------
@@ -2192,6 +2121,12 @@ public void Timer_VehicleRespawner(Handle timer, int vehicle)
 	}
 }
 
+void Timer_LeaveVehicle(Handle timer, int exDriver)
+{
+	if (!IsFakeClient(exDriver))
+		SendConVarValue(exDriver, FindConVar("sv_client_predict"), "1");
+}
+
 public Action Timer_FixVehiclesBuggedSounds(Handle timer)
 {
 	int channel, x; float y; int z;
@@ -2219,6 +2154,59 @@ public void RequestFrameCallback_DestroyVehicle(int entity)
 	int index = g_VehicleProperties.FindValue(entity, VehicleProperties::entity);
 	if (index != -1)
 		g_VehicleProperties.Erase(index);
+}
+
+void RequestFrameCallback_LeaveVehicle(int exDriver)
+{
+	int vehicle = Player(exDriver).VehicleIsInAsDriver;
+
+	Player(exDriver).VehicleIsInAsDriver = -1;
+
+	if (Vehicle(vehicle).DummyDriver != -1)
+	{
+		AcceptEntityInput(Vehicle(vehicle).DummyDriver, "ClearParent");
+		RemoveEntity(Vehicle(vehicle).DummyDriver);
+		Vehicle(vehicle).DummyDriver = -1;
+	}
+
+	if (IsValidEdict(exDriver)) // Needed to avoid an error message in the server log if a player is in the vehicle during server's shutdown
+	{
+		VehicleConfig vehicleConfig;
+		GetConfigByVehicleEnt(vehicle, vehicleConfig);
+
+		if (vehicleConfig.is_passenger_visible)
+		{
+			SetEntityRenderColor(exDriver, 255, 255, 255, 255);
+			SetEntityRenderMode(exDriver, RENDER_NORMAL);
+			DispatchKeyValueInt(exDriver, "solid", 2);
+			RevertClientModelToDefault(exDriver);
+		}
+
+		// Teleport the player who is leaving the vehicle basing on the alternate CheckExitPoint function
+		float vehicleExitOrigin[3];
+		float vehicleExitAngles[3];
+		char attachments[][8] = {"exit1", "exit2"};
+
+		for (int i = 0; i < sizeof(attachments); i++)
+		{
+			if (GetEntityAttachment(vehicle, LookupEntityAttachment(vehicle, attachments[i]), vehicleExitOrigin, vehicleExitAngles))
+			{			
+				float exitPoint[3];
+				bool IsExitPointFound = CheckExitPoint(vehicleExitOrigin, vehicleExitAngles, g_PlayerMins, g_PlayerMaxs, vehicleConfig.are_exitpoints_eyes, exitPoint);
+				if (IsExitPointFound)
+				{			
+					exitPoint[2] = exitPoint[2] + 12.0;
+					vehicleExitAngles[2] = 0.0;
+					TeleportEntity(exDriver, exitPoint, vehicleExitAngles, NULL_VECTOR);
+					break;
+				}
+			}
+			else
+				LogError("Missing '%s' attachment on vehicle %i", attachments[i], vehicle);
+		}
+		
+		CreateTimer(0.5, Timer_LeaveVehicle, exDriver, TIMER_FLAG_NO_MAPCHANGE);
+	}
 }
 
 public bool TraceEntityFilter_DontHitEntity(int entity, int mask, any data)
