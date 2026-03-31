@@ -26,6 +26,7 @@ This plugin bundles the required entity fixes, and a few configurable nice-to-ha
 
 * SourceMod 1.12
 * [LoadSoundScript](https://github.com/haxtonsale/LoadSoundScript) (optional, used for vehicle sounds)
+* [Day of Defeat:Source themed vehicles](https://gamebanana.com/mods/658462) (optional)
 
 ## Installation
 
