@@ -29,9 +29,9 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 ProfOrribilus-fork-0.2.1" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
-#define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus"
-#define PLUGIN_URL		"https://github.com/ProfOrribilus/source-vehicles"
+#define PLUGIN_VERSION	"2.4.2 DNA.styx-fork-0.2.01" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus, Claude.ai guided by DNA.styx"
+#define PLUGIN_URL		"https://github.com/DNA-styx/source-vehicles"
 
 #define VEHICLE_CLASSNAME "prop_vehicle_driveable"
 
@@ -93,6 +93,8 @@ ArrayList g_AllVehicles;
 ArrayList g_VehicleProperties;
 ArrayList g_VehicleSpawnerProperties;
 ArrayList g_ConVars;
+
+TopMenu g_TopMenu;
 
 bool g_VehicleDamageDealerEnabled;
 bool g_VehiclePassengerModelsEnabled;
@@ -873,6 +875,13 @@ public void OnPluginStart()
 		if (IsClientInGame(client))
 			OnClientPutInServer(client);
 	}
+
+	// If adminmenu is already loaded, manually fire OnAdminMenuReady
+	TopMenu topmenu;
+	if (LibraryExists("adminmenu") && ((topmenu = GetAdminTopMenu()) != null))
+	{
+		OnAdminMenuReady(topmenu);
+	}
 }
 
 public void OnPluginEnd()
@@ -930,6 +939,11 @@ public void OnLibraryRemoved(const char[] name)
 	{
 		g_LoadSoundscript = false;
 	}
+
+	if (StrEqual(name, "adminmenu"))
+	{
+		g_TopMenu = null;
+	}
 }
 
 public void OnMapStart()
@@ -964,6 +978,22 @@ public void OnConfigsExecuted()
 	SetupConVar("sv_turbophysics", "0");
 
 	ReadVehicleConfig();
+}
+
+public void OnAdminMenuReady(Handle topmenu)
+{
+	TopMenu menu = view_as<TopMenu>(topmenu);
+
+	if (menu == g_TopMenu)
+		return;
+
+	g_TopMenu = menu;
+
+	TopMenuObject serverCmds = g_TopMenu.FindCategory(ADMINMENU_SERVERCOMMANDS);
+	if (serverCmds != INVALID_TOPMENUOBJECT)
+	{
+		g_TopMenu.AddItem("sm_vehicle", TopMenuHandler_VehicleMenu, serverCmds, "sm_vehicle", ADMFLAG_GENERIC);
+	}
 }
 
 public void OnClientPutInServer(int client)
@@ -2952,6 +2982,18 @@ public Action EventCallback_PlayerTeam(Event event, const char[] name, bool dont
 //-----------------------------------------------------------------------------
 // Menus
 //-----------------------------------------------------------------------------
+
+public void TopMenuHandler_VehicleMenu(TopMenu topmenu, TopMenuAction action, TopMenuObject object_id, int param, char[] buffer, int maxlength)
+{
+	if (action == TopMenuAction_DisplayOption)
+	{
+		Format(buffer, maxlength, "%T", "#Menu_TopMenu_Vehicles", param);
+	}
+	else if (action == TopMenuAction_SelectOption)
+	{
+		DisplayMainVehicleMenu(param);
+	}
+}
 
 void DisplayMainVehicleMenu(int client)
 {

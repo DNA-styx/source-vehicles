@@ -109,4 +109,8 @@
 	{
 		"en"		"Half-Life 2 Airboat"
 	}
+	"#Menu_TopMenu_Vehicles"
+	{
+		"en"    "Driveable Vehicles"
+	}
 }
