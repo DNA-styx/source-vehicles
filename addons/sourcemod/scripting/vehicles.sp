@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 DNA.styx-fork-0.2.01" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 DNA.styx-fork-0.2.02" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus, Claude.ai guided by DNA.styx"
 #define PLUGIN_URL		"https://github.com/DNA-styx/source-vehicles"
 
@@ -38,7 +38,7 @@
 #define VEHICLEDUMMY_MODELNAME_TEMPLATE "models/vehicles/%s_dummy_%s.mdl"
 #define VEHICLEPLAYER_MODELNAME_TEMPLATE "models/player/%s_%s_%s_%s"
 #define VEHICLEPLAYER_MODELNAMEWITHSUFFIX_TEMPLATE "models/player/%s_%s_%s_%s-%s"
-#define VEHICLESPAWNERS_FILENAME_TEMPLATE "resource/%s_vehicles.txt"
+#define VEHICLESPAWNERS_FILENAME_TEMPLATE "data/vehicles/%s_vehicles.cfg"
 
 #define COLLISION_GROUP_DEBRIS 1
 #define COLLISION_GROUP_VEHICLE	7
@@ -1486,7 +1486,7 @@ void ReadMapSpawnersFile()
 	char currentLevelName[64];
 	char fileName[PLATFORM_MAX_PATH];
 	GetCurrentMap(currentLevelName, sizeof(currentLevelName));
-	Format(fileName, sizeof(fileName), VEHICLESPAWNERS_FILENAME_TEMPLATE, currentLevelName);
+	BuildPath(Path_SM, fileName, sizeof(fileName), VEHICLESPAWNERS_FILENAME_TEMPLATE, currentLevelName);
 
 	if (FileExists(fileName, false))
 	{
@@ -2403,7 +2403,7 @@ public Action ConCmd_ReloadVehicleConfig(int client, int args)
 	return Plugin_Handled;
 }
 
-// Marks the current player position and angles as the place to automaticcaly spawn a vehicle at match start. The place is stored in a file named "<currentmapname>_vehicle.txt" under the game's "resource" folder.
+// Marks the current player position and angles as the place to automaticcaly spawn a vehicle at match start. The place is stored in a file named "<currentmapname>_vehicles.cfg" under addons/sourcemod/data/vehicles/.
 public Action ConCmd_PlaceVehicleSpawnerHere(int client, int args)
 {
 	if (client == 0)
@@ -2432,8 +2432,11 @@ public Action ConCmd_PlaceVehicleSpawnerHere(int client, int args)
 	KeyValues kvVehicleSpawners;
 	char currentLevelName[64];
 	char fileName[PLATFORM_MAX_PATH];
+	char dirPath[PLATFORM_MAX_PATH];
 	GetCurrentMap(currentLevelName, sizeof(currentLevelName));
-	Format(fileName, sizeof(fileName), VEHICLESPAWNERS_FILENAME_TEMPLATE, currentLevelName);
+	BuildPath(Path_SM, fileName, sizeof(fileName), VEHICLESPAWNERS_FILENAME_TEMPLATE, currentLevelName);
+	BuildPath(Path_SM, dirPath, sizeof(dirPath), "data/vehicles");
+	CreateDirectory(dirPath, 511);
 
 	kvVehicleSpawners = CreateKeyValues("VehicleSpawners");
 
@@ -2987,7 +2990,7 @@ public void TopMenuHandler_VehicleMenu(TopMenu topmenu, TopMenuAction action, To
 {
 	if (action == TopMenuAction_DisplayOption)
 	{
-		Format(buffer, maxlength, "%T", "#Menu_TopMenu_Vehicles", param);
+		strcopy(buffer, maxlength, "Driveable Vehicles");
 	}
 	else if (action == TopMenuAction_SelectOption)
 	{
@@ -2998,7 +3001,7 @@ public void TopMenuHandler_VehicleMenu(TopMenu topmenu, TopMenuAction action, To
 void DisplayMainVehicleMenu(int client)
 {
 	Menu menu = new Menu(MenuHandler_MainVehicleMenu, MenuAction_Select | MenuAction_DisplayItem | MenuAction_End);
-	menu.SetTitle("%T", "#Menu_Title_Main", client, PLUGIN_VERSION, PLUGIN_AUTHOR, PLUGIN_URL);
+	menu.SetTitle("Driveable Vehicles");
 	
 	if (CheckCommandAccess(client, "sm_vehicle_create", ADMFLAG_GENERIC))
 		menu.AddItem("vehicle_create", "#Menu_Item_CreateVehicle");
