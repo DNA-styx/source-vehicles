@@ -1517,11 +1517,6 @@ void ReadMapSpawnersFile()
 
 						if (GetConfigById(vehicleId, vehicleConfig))
 						{
-							position[2] = position[2] + 5.0;
-							angles[0] = 0.0;
-							angles[1] = angles[1] - 90.0;
-							angles[2] = 0.0;
-
 							int spawner = StringToInt(currentSectionName);
 							if (spawner == 0 && !StrEqual(currentSectionName, "0"))
 							{
@@ -2460,7 +2455,7 @@ public Action ConCmd_ReloadVehicleConfig(int client, int args)
 	return Plugin_Handled;
 }
 
-// Marks the current player position and angles as the place to automaticcaly spawn a vehicle at match start. The place is stored in a file named "<currentmapname>_vehicles.cfg" under addons/sourcemod/data/vehicles/.
+// Places a persistent vehicle at the player's view position and saves it to the map file.
 public Action ConCmd_PlaceVehicleSpawnerHere(int client, int args)
 {
 	if (client == 0)
@@ -2468,24 +2463,24 @@ public Action ConCmd_PlaceVehicleSpawnerHere(int client, int args)
 		ReplyToCommand(client, "%t", "Command is in-game only");
 		return Plugin_Handled;
 	}
-	
+
 	if (args == 0)
 	{
-		//DisplayVehicleCreateMenu(client);
 		ReplyToCommand(client, "Vehicle id not specified");
 		return Plugin_Handled;
 	}
-	
+
 	char id[256];
 	GetCmdArgString(id, sizeof(id));
-	
+
 	VehicleConfig config;
 	if (!GetConfigById(id, config))
 	{
 		ReplyToCommand(client, "%t", "#Command_CreateVehicle_Invalid", id);
 		return Plugin_Handled;
 	}
-	
+
+	// Resolve next spawner ID from file
 	KeyValues kvVehicleSpawners;
 	char currentLevelName[64];
 	char fileName[PLATFORM_MAX_PATH];
@@ -2499,7 +2494,7 @@ public Action ConCmd_PlaceVehicleSpawnerHere(int client, int args)
 
 	if (FileExists(fileName, false))
 	{
-		if (!(FileToKeyValues(kvVehicleSpawners, fileName)))
+		if (!FileToKeyValues(kvVehicleSpawners, fileName))
 		{
 			ReplyToCommand(client, "File %s loading failed", fileName);
 			delete kvVehicleSpawners;
@@ -2510,7 +2505,7 @@ public Action ConCmd_PlaceVehicleSpawnerHere(int client, int args)
 	int currentSectionNumber;
 	char sectionName[64];
 
-	if (!(KvGotoFirstSubKey(kvVehicleSpawners)))
+	if (!KvGotoFirstSubKey(kvVehicleSpawners))
 	{
 		currentSectionNumber = 0;
 	}
@@ -2519,13 +2514,13 @@ public Action ConCmd_PlaceVehicleSpawnerHere(int client, int args)
 		do
 		{
 		}
-		while(KvGotoNextKey(kvVehicleSpawners));
+		while (KvGotoNextKey(kvVehicleSpawners));
 
 		KvGetSectionName(kvVehicleSpawners, sectionName, sizeof(sectionName));
 		currentSectionNumber = StringToInt(sectionName);
-		if (currentSectionNumber == 0 && !(StrEqual(sectionName, "0")))
+		if (currentSectionNumber == 0 && !StrEqual(sectionName, "0"))
 		{
-			ReplyToCommand(client, "Last spawner ID retrieving failed. It isn't a number. Spawner marking cancelled.", fileName);
+			ReplyToCommand(client, "Last spawner ID retrieving failed. It isn't a number. Spawner marking cancelled.");
 			delete kvVehicleSpawners;
 			return Plugin_Handled;
 		}
@@ -2533,23 +2528,43 @@ public Action ConCmd_PlaceVehicleSpawnerHere(int client, int args)
 		currentSectionNumber++;
 	}
 
+	// Spawn vehicle and find placement position using the same method as session vehicles
+	int vehicle = CreateVehicle(config, NULL_VECTOR, NULL_VECTOR, -1, currentSectionNumber);
+	if (vehicle == -1)
+	{
+		LogError("Failed to create vehicle for persistent placement: %s", id);
+		delete kvVehicleSpawners;
+		return Plugin_Handled;
+	}
+
+	float position[3], angles[3];
+	if (!GetClientViewPos(client, vehicle, (MASK_SOLID | MASK_WATER), position, angles))
+	{
+		RemoveEntity(vehicle);
+		LogError("Failed to get placement position for persistent vehicle: %s", id);
+		delete kvVehicleSpawners;
+		return Plugin_Handled;
+	}
+
+	TeleportEntity(vehicle, position, angles);
+
+	// Save final position and angles to file
 	IntToString(currentSectionNumber, sectionName, sizeof(sectionName));
 	KvGoBack(kvVehicleSpawners);
 	KvJumpToKey(kvVehicleSpawners, sectionName, true);
 	KvSetString(kvVehicleSpawners, "id", id);
-
-	float position[3];
-	float angles[3];
-	GetClientAbsOrigin(client, position);
-	GetClientEyeAngles(client, angles);
-
 	KvSetVector(kvVehicleSpawners, "position", position);
 	KvSetVector(kvVehicleSpawners, "angles", angles);
 	KvRewind(kvVehicleSpawners);
 	KeyValuesToFile(kvVehicleSpawners, fileName);
 	delete kvVehicleSpawners;
 
-	ReplyToCommand(client, "New spawner successful marked as ID %i", currentSectionNumber);
+	// Register in memory so the vehicle respawns correctly on round start
+	char vehicleId[64];
+	strcopy(vehicleId, sizeof(vehicleId), id);
+	VehicleSpawner.Register(currentSectionNumber, vehicleId, position, angles);
+
+	ReplyToCommand(client, "Persistent vehicle placed as ID %i", currentSectionNumber);
 
 	return Plugin_Handled;
 }
