@@ -51,6 +51,23 @@ methodmap Vehicle
 	}
 	
 	/**
+	 * The current health of this vehicle. Range is 0.0 to 100.0.
+	 * Returns -1.0 if the vehicle is not tracked.
+	 */
+	property float Health
+	{
+		public native get();
+	}
+	
+	/**
+	 * The client index of the second passenger (gunner), or -1 if unoccupied.
+	 */
+	property int Shooter
+	{
+		public native get();
+	}
+	
+	/**
 	 * Retrieves the identifier of this vehicle.
 	 *
 	 * The identifier is retrieved from the vehicle configuration using the vehicle model and the vehicle script.
@@ -101,6 +118,8 @@ public __pl_vehicles_SetNTVOptional()
 	MarkNativeAsOptional("Vehicle.Create");
 	MarkNativeAsOptional("Vehicle.Owner.get");
 	MarkNativeAsOptional("Vehicle.Owner.set");
+	MarkNativeAsOptional("Vehicle.Health.get");
+	MarkNativeAsOptional("Vehicle.Shooter.get");
 	MarkNativeAsOptional("Vehicle.GetId");
 	MarkNativeAsOptional("Vehicle.ForcePlayerIn");
 	MarkNativeAsOptional("Vehicle.ForcePlayerOut");
