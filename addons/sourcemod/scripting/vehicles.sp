@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 DNA.styx-fork-0.2.08" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 DNA.styx-fork-0.2.27" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus, Claude.ai guided by DNA.styx"
 #define PLUGIN_URL		"https://github.com/DNA-styx/source-vehicles"
 
@@ -396,6 +396,8 @@ enum struct VehicleProperties
 	int damageDealer; // For DoDS only, at the moment: since, in this game, vehicles' collision with player doesn't work, an invisible model is spawned as prop_dynamic parented to the vehicle's entity which gives damage to run over players.
 	int pusher; // The entity which pushes away players who are around the vehicle when it is moving.
 	int explosive; // The entity which emits the explosion and damage when the vehicle is destroyed.
+	int smokeEffect; // Smoke entity spawned at the engine when the vehicle reaches 50% health.
+	int fireEffect; // Fire entity spawned at the engine when the vehicle reaches 25% health.
 	bool destroyed;
 }
 
@@ -672,6 +674,38 @@ methodmap Vehicle
 		}
 	}
 
+	property int SmokeEffect
+	{
+		public get()
+		{
+			if (this._listIndex != -1)
+				return g_VehicleProperties.Get(this._listIndex, VehicleProperties::smokeEffect);
+
+			return -1;
+		}
+		public set(int value)
+		{
+			if (this._listIndex != -1)
+				g_VehicleProperties.Set(this._listIndex, value, VehicleProperties::smokeEffect);
+		}
+	}
+
+	property int FireEffect
+	{
+		public get()
+		{
+			if (this._listIndex != -1)
+				return g_VehicleProperties.Get(this._listIndex, VehicleProperties::fireEffect);
+
+			return -1;
+		}
+		public set(int value)
+		{
+			if (this._listIndex != -1)
+				g_VehicleProperties.Set(this._listIndex, value, VehicleProperties::fireEffect);
+		}
+	}
+
 	property bool Destroyed
 	{
 		public get()
@@ -708,6 +742,8 @@ methodmap Vehicle
 			properties.damageDealer = -1;
 			properties.pusher = -1;
 			properties.explosive = -1;
+			properties.smokeEffect = -1;
+			properties.fireEffect = -1;
 			properties.destroyed = false;
 			
 			g_VehicleProperties.PushArray(properties);
@@ -817,7 +853,7 @@ public void OnPluginStart()
 	vehicle_passenger_damage_modifier = CreateConVar("vehicle_passenger_damage_modifier", "1.0", "Modifier of damage dealt to vehicle passengers.", _, true, 0.0);
 	vehicle_enable_entry_exit_anims = CreateConVar("vehicle_enable_entry_exit_anims", "0", "If set to 1, enables entry and exit animations.");
 	vehicle_enable_horns = CreateConVar("vehicle_enable_horns", "1", "If set to 1, enables vehicle horns.");
-	vehicle_health = CreateConVar("vehicle_health", "100.0", "Starting health for all vehicles.", _, true, 1.0);
+	vehicle_health = CreateConVar("vehicle_health", "100.0", "Starting health for all vehicles. Changes take effect on map restart.", _, true, 1.0);
 	
 	RegAdminCmd("sm_vehicle", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC, "Open vehicle menu");
 	RegAdminCmd("sm_vehicle_create", ConCmd_CreateVehicle, ADMFLAG_GENERIC, "Create new vehicle");
@@ -842,6 +878,7 @@ public void OnPluginStart()
 
 		AddNormalSoundHook(SoundHook_TrackBuggedVehicleSounds);
 		CreateTimer(2.0, Timer_FixVehiclesBuggedSounds, _, TIMER_REPEAT);
+		CreateTimer(5.0, Timer_VehicleHealthDisplay, _, TIMER_REPEAT);
 	}
 
 	GameData gamedata = new GameData("vehicles");
@@ -953,6 +990,28 @@ public void OnMapStart()
 {
 	DHookGamerulesObject();
 	PrecacheSound("ambient/burnedout.wav", true);
+	PrecacheModel("sprites/zerogxplode.spr", true);
+	PrecacheGeneric("particles/fire_01.pcf", true);
+	PrecacheModel("materials/particle/fire_burning_character/fire_burning_character_depthblend.vmt", true);
+	PrecacheModel("materials/particle/vistasmokev1/vistasmokev1.vmt", true);
+
+	bool tableLock = LockStringTables(false);
+
+	int effectTable = FindStringTable("EffectDispatch");
+	if (effectTable != INVALID_STRING_TABLE)
+		AddToStringTable(effectTable, "ParticleEffect");
+
+	int particleTable = FindStringTable("ParticleEffectNames");
+	if (particleTable != INVALID_STRING_TABLE)
+	{
+		AddToStringTable(particleTable, "burning_engine_01");
+	}
+	else
+	{
+		LogError("Failed to find ParticleEffectNames string table — fire particle effect will not work.");
+	}
+
+	LockStringTables(tableLock);
 
 	switch (GetEngineVersion())
 	{
@@ -1143,6 +1202,14 @@ public void OnEntityDestroyed(int entity)
 		if (Vehicle(entity).Explosive != -1)
 			if (IsValidEntity(Vehicle(entity).Explosive))
 				RemoveEntity(Vehicle(entity).Explosive);
+
+		if (Vehicle(entity).SmokeEffect != -1)
+			if (IsValidEntity(Vehicle(entity).SmokeEffect))
+				RemoveEntity(Vehicle(entity).SmokeEffect);
+
+		if (Vehicle(entity).FireEffect != -1)
+			if (IsValidEntity(Vehicle(entity).FireEffect))
+				RemoveEntity(Vehicle(entity).FireEffect);
 
 		if (Vehicle(entity).Destroyed)
 			StopSound(entity, SNDCHAN_STATIC, "ambient/burnedout.wav");
@@ -1455,7 +1522,7 @@ void InitializeGameVariables()
 			g_VehicleDamageModifier = 0.025;
 			g_VehicleDamageDealerEnabled = true;
 			g_VehiclePassengerModelsEnabled = true;
-			g_VehicleExplosionSoundName = "ambient/explosions/explode_2.wav";
+			g_VehicleExplosionSoundName = "weapons/explode5.wav";
 
 			g_PlayerModelTeamName[0] = "american";
 			g_PlayerModelTeamName[1] = "german";
@@ -1971,6 +2038,49 @@ void SpawnExplosiveForVehicle(int vehicle)
 	}
 }
 
+void SpawnFireForVehicle(int vehicle)
+{
+	int fire = CreateEntityByName("info_particle_system");
+	if (fire == -1)
+	{
+		LogError("Failed to create fire particle entity for vehicle %i", vehicle);
+		return;
+	}
+
+	float vehicleOrigin[3];
+	GetEntPropVector(vehicle, Prop_Send, "m_vecOrigin", vehicleOrigin);
+	DispatchKeyValueVector(fire, "origin", vehicleOrigin);
+	DispatchKeyValue(fire, "effect_name", "burning_engine_01");
+	DispatchKeyValue(fire, "start_active", "1");
+
+	if (DispatchSpawn(fire))
+	{
+		ActivateEntity(fire);
+		SetVariantString("!activator");
+		AcceptEntityInput(fire, "SetParent", vehicle);
+
+		char attachmentName[][16] = { "explosion", "vehicle_engine" };
+		for (int i = 0; i < sizeof(attachmentName); i++)
+		{
+			if (LookupEntityAttachment(vehicle, attachmentName[i]) > 0)
+			{
+				SetVariantString(attachmentName[i]);
+				AcceptEntityInput(fire, "SetParentAttachment");
+				break;
+			}
+		}
+
+		AcceptEntityInput(fire, "Start");
+		Vehicle(vehicle).FireEffect = fire;
+		CreateTimer(1.0, Timer_VehicleFireDamage, EntIndexToEntRef(vehicle), TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	}
+	else
+	{
+		LogError("Failed to spawn fire particle entity for vehicle %i", vehicle);
+		RemoveEntity(fire);
+	}
+}
+
 bool FilterBuggedVehicleSound(char sample[PLATFORM_MAX_PATH])
 {
 	char gameSoundsFilter[][32] = { "ATV_engine_idle", "ATV_engine_start", "ATV_firstgear", "ATV_turbo_on", "ATV_throttleoff_slowspeed", "ATV_reverse" };
@@ -2216,6 +2326,44 @@ void Timer_LeaveVehicle(Handle timer, int exDriver)
 		SendConVarValue(exDriver, FindConVar("sv_client_predict"), "1");
 }
 
+public Action Timer_VehicleFireDamage(Handle timer, int vehicleRef)
+{
+	int vehicle = EntRefToEntIndex(vehicleRef);
+
+	if (vehicle == -1)
+		return Plugin_Stop;
+
+	if (Vehicle(vehicle).FireEffect == -1 || Vehicle(vehicle).Destroyed)
+		return Plugin_Stop;
+
+	// Directly reduce health by 1% of max health per second, bypassing SDKHooks_TakeDamage
+	Vehicle(vehicle).Health -= vehicle_health.FloatValue * 0.01;
+
+	if (Vehicle(vehicle).Health <= 0.0)
+	{
+		TriggerVehicleDestruction(vehicle);
+		return Plugin_Stop;
+	}
+
+	// Keep health display visible for occupants every second while on fire
+	if (GetEngineVersion() == Engine_DODS)
+	{
+		int displayHealth = RoundToNearest(Vehicle(vehicle).Health);
+		if (displayHealth < 0)
+			displayHealth = 0;
+
+		int driver = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
+		if (driver != -1)
+			PrintCenterText(driver, "Vehicle: %d HP", displayHealth);
+
+		int shooter = Vehicle(vehicle).Shooter;
+		if (shooter != -1)
+			PrintCenterText(shooter, "Vehicle: %d HP", displayHealth);
+	}
+
+	return Plugin_Continue;
+}
+
 public Action Timer_FixVehiclesBuggedSounds(Handle timer)
 {
 	int channel, x; float y; int z;
@@ -2233,6 +2381,37 @@ public Action Timer_FixVehiclesBuggedSounds(Handle timer)
 				EmitSoundToAll(sample, vehicle, channel, _, SND_STOP | SND_STOPLOOPING);
 			}
 		}
+	}
+
+	return Plugin_Continue;
+}
+
+public Action Timer_VehicleHealthDisplay(Handle timer)
+{
+	int vehicle = -1;
+	while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
+	{
+		if (Vehicle(vehicle).Destroyed || Vehicle(vehicle).Health <= 0.0)
+			continue;
+
+		if (Vehicle(vehicle).Health > vehicle_health.FloatValue * 0.25)
+			continue;
+
+		int driver = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
+		int shooter = Vehicle(vehicle).Shooter;
+
+		if (driver == -1 && shooter == -1)
+			continue;
+
+		int displayHealth = RoundToNearest(Vehicle(vehicle).Health);
+		if (displayHealth < 0)
+			displayHealth = 0;
+
+		if (driver != -1)
+			PrintCenterText(driver, "Vehicle: %d HP", displayHealth);
+
+		if (shooter != -1)
+			PrintCenterText(shooter, "Vehicle: %d HP", displayHealth);
 	}
 
 	return Plugin_Continue;
@@ -2812,59 +2991,83 @@ public void SDKHookCB_PropVehicleDriveable_OnTakeDamagePost(int victim, int atta
 	{
 		if (Vehicle(victim).Health <= 0)
 		{
-			Vehicle(victim).Destroyed = true;
-
-			VehicleConfig vehicleConfig;
-			
-			if (GetConfigByVehicleEnt(victim, vehicleConfig))
-			{
-				GetShooterOutFromVehicle(Vehicle(victim).Shooter, false);
-				int driver = GetEntPropEnt(victim, Prop_Data, "m_hPlayer");
-				if (driver != -1)
-					SDKCall_HandlePassengerExit(GetServerVehicle(victim), driver);
-					
-				if (GetEngineVersion() == Engine_DODS)
-				{
-					EmitSoundToAll(g_VehicleExplosionSoundName, victim, SNDCHAN_AUTO, SNDLEVEL_AIRCRAFT);
-				}
-				else
-				{
-					EmitGameSoundToAll(g_VehicleExplosionSoundName, Vehicle(victim).Explosive, SND_NOFLAGS);
-				}
-				AcceptEntityInput(Vehicle(victim).Explosive, "Explode");
-
-				if (vehicleConfig.skins.Length > 1)
-				{
-					SetVariantInt(vehicleConfig.skins.Get(vehicleConfig.skins.Length - 1));
-					AcceptEntityInput(victim, "skin");
-				}
-				else
-				{
-					SetVariantInt(1);
-					AcceptEntityInput(victim, "skin");
-				}
-
-				AcceptEntityInput(victim, "TurnOff");
-				AcceptEntityInput(victim, "Lock");
-				EmitSoundToAll("ambient/burnedout.wav", victim, SNDCHAN_STATIC, SNDLEVEL_NORMAL);
-
-				CreateTimer(15.0, Timer_VehicleRespawner, victim, TIMER_FLAG_NO_MAPCHANGE);
-			}
+			TriggerVehicleDestruction(victim);
 		}
 		else if (GetEngineVersion() == Engine_DODS)
 		{
-			int displayHealth = RoundToNearest(Vehicle(victim).Health);
-			if (displayHealth < 0)
-				displayHealth = 0;
+			float maxHealth = vehicle_health.FloatValue;
 
-			int driver = GetEntPropEnt(victim, Prop_Data, "m_hPlayer");
-			if (driver != -1)
-				PrintCenterText(driver, "Vehicle: %d HP", displayHealth);
+			if (Vehicle(victim).Health <= maxHealth * 0.25)
+			{
+				int displayHealth = RoundToNearest(Vehicle(victim).Health);
+				if (displayHealth < 0)
+					displayHealth = 0;
 
-			int shooter = Vehicle(victim).Shooter;
-			if (shooter != -1)
-				PrintCenterText(shooter, "Vehicle: %d HP", displayHealth);
+				int driver = GetEntPropEnt(victim, Prop_Data, "m_hPlayer");
+				if (driver != -1)
+					PrintCenterText(driver, "Vehicle: %d HP", displayHealth);
+
+				int shooter = Vehicle(victim).Shooter;
+				if (shooter != -1)
+					PrintCenterText(shooter, "Vehicle: %d HP", displayHealth);
+			}
+
+			if (Vehicle(victim).Health <= maxHealth * 0.25 && Vehicle(victim).FireEffect == -1)
+				SpawnFireForVehicle(victim);
 		}
+	}
+}
+
+void TriggerVehicleDestruction(int vehicle)
+{
+	Vehicle(vehicle).Destroyed = true;
+
+	VehicleConfig vehicleConfig;
+
+	if (GetConfigByVehicleEnt(vehicle, vehicleConfig))
+	{
+		if (GetEngineVersion() == Engine_DODS)
+		{
+			int driver = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
+			if (driver != -1)
+				PrintCenterText(driver, "Vehicle: 0 HP");
+
+			int shooter = Vehicle(vehicle).Shooter;
+			if (shooter != -1)
+				PrintCenterText(shooter, "Vehicle: 0 HP");
+		}
+
+		GetShooterOutFromVehicle(Vehicle(vehicle).Shooter, false);
+		int driver = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
+		if (driver != -1)
+			SDKCall_HandlePassengerExit(GetServerVehicle(vehicle), driver);
+
+		if (GetEngineVersion() == Engine_DODS)
+		{
+			EmitSoundToAll(g_VehicleExplosionSoundName, vehicle, SNDCHAN_AUTO, SNDLEVEL_CAR);
+		}
+		else
+		{
+			EmitGameSoundToAll(g_VehicleExplosionSoundName, Vehicle(vehicle).Explosive, SND_NOFLAGS);
+		}
+		AcceptEntityInput(Vehicle(vehicle).Explosive, "Explode");
+
+		if (vehicleConfig.skins.Length > 1)
+		{
+			SetVariantInt(vehicleConfig.skins.Get(vehicleConfig.skins.Length - 1));
+			AcceptEntityInput(vehicle, "skin");
+		}
+		else
+		{
+			SetVariantInt(1);
+			AcceptEntityInput(vehicle, "skin");
+		}
+
+		AcceptEntityInput(vehicle, "TurnOff");
+		AcceptEntityInput(vehicle, "Lock");
+		EmitSoundToAll("ambient/burnedout.wav", vehicle, SNDCHAN_STATIC, SNDLEVEL_NORMAL);
+
+		CreateTimer(15.0, Timer_VehicleRespawner, vehicle, TIMER_FLAG_NO_MAPCHANGE);
 	}
 }
 
