@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 DNA.styx-fork-0.2.03" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 DNA.styx-fork-0.2.04" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus, Claude.ai guided by DNA.styx"
 #define PLUGIN_URL		"https://github.com/DNA-styx/source-vehicles"
 
@@ -101,7 +101,7 @@ bool g_VehiclePassengerModelsEnabled;
 float g_VehicleDamageModifier;
 bool g_ExecRoundStartHookFunction;
 
-char g_VehicleExplosionSoundName[32];
+char g_VehicleExplosionSoundName[PLATFORM_MAX_PATH];
 char g_DefaultPlayerModels[2][6][PLATFORM_MAX_PATH];
 float g_DefaultPlayerViewOffset[] = { 0.0, 0.0, 54.0 };
 float g_PlayerMins[3];
@@ -950,6 +950,7 @@ public void OnLibraryRemoved(const char[] name)
 public void OnMapStart()
 {
 	DHookGamerulesObject();
+	PrecacheSound("ambient/burnedout.wav", true);
 
 	switch (GetEngineVersion())
 	{
@@ -959,6 +960,7 @@ public void OnMapStart()
 			HookEvent("dod_round_active", EventHook_RoundActive);
 			HookEvent("dod_round_restart_seconds", EventHook_PreRoundRestart);
 			HookEvent("dod_round_win", EventHook_PreRoundRestart);
+			PrecacheSound(g_VehicleExplosionSoundName, true);
 		}
 		case Engine_HL2DM:
 		{
@@ -1139,7 +1141,10 @@ public void OnEntityDestroyed(int entity)
 		if (Vehicle(entity).Explosive != -1)
 			if (IsValidEntity(Vehicle(entity).Explosive))
 				RemoveEntity(Vehicle(entity).Explosive);
-		
+
+		if (Vehicle(entity).Destroyed)
+			StopSound(entity, SNDCHAN_STATIC, "ambient/burnedout.wav");
+
 		Vehicle(entity).Destroy();
 		SDKCall_HandleEntryExitFinish(GetServerVehicle(entity), true, true);
 	}
@@ -1448,7 +1453,7 @@ void InitializeGameVariables()
 			g_VehicleDamageModifier = 0.025;
 			g_VehicleDamageDealerEnabled = true;
 			g_VehiclePassengerModelsEnabled = true;
-			g_VehicleExplosionSoundName = "Weapon_C4.Explode";
+			g_VehicleExplosionSoundName = "ambient/explosions/explode_2.wav";
 
 			g_PlayerModelTeamName[0] = "american";
 			g_PlayerModelTeamName[1] = "german";
@@ -2807,7 +2812,14 @@ public void SDKHookCB_PropVehicleDriveable_OnTakeDamagePost(int victim, int atta
 				if (driver != -1)
 					SDKCall_HandlePassengerExit(GetServerVehicle(victim), driver);
 					
-				EmitGameSoundToAll(g_VehicleExplosionSoundName, Vehicle(victim).Explosive, SND_NOFLAGS);
+				if (GetEngineVersion() == Engine_DODS)
+				{
+					EmitSoundToAll(g_VehicleExplosionSoundName, victim, SNDCHAN_AUTO, SNDLEVEL_AIRCRAFT);
+				}
+				else
+				{
+					EmitGameSoundToAll(g_VehicleExplosionSoundName, Vehicle(victim).Explosive, SND_NOFLAGS);
+				}
 				AcceptEntityInput(Vehicle(victim).Explosive, "Explode");
 
 				if (vehicleConfig.skins.Length > 1)
@@ -2823,6 +2835,7 @@ public void SDKHookCB_PropVehicleDriveable_OnTakeDamagePost(int victim, int atta
 
 				AcceptEntityInput(victim, "TurnOff");
 				AcceptEntityInput(victim, "Lock");
+				EmitSoundToAll("ambient/burnedout.wav", victim, SNDCHAN_STATIC, SNDLEVEL_NORMAL);
 
 				CreateTimer(15.0, Timer_VehicleRespawner, victim, TIMER_FLAG_NO_MAPCHANGE);
 			}
