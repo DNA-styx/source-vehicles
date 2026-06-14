@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 DNA.styx-fork-0.2.27" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 DNA.styx-fork-0.2.29" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus, Claude.ai guided by DNA.styx"
 #define PLUGIN_URL		"https://github.com/DNA-styx/source-vehicles"
 
@@ -945,6 +945,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 			CreateNative("Vehicle.ForcePlayerIn", NativeCall_VehicleForcePlayerIn);
 			CreateNative("Vehicle.ForcePlayerOut", NativeCall_VehicleForcePlayerOut);
 			CreateNative("GetVehicleName", NativeCall_GetVehicleName);
+			CreateNative("Vehicle.Health.get",  NativeCall_VehicleHealthGet);
+			CreateNative("Vehicle.Shooter.get", NativeCall_VehicleShooterGet);
 			
 			MarkNativeAsOptional("LoadSoundScript");
 			
@@ -2238,6 +2240,26 @@ public int NativeCall_GetVehicleName(Handle plugin, int numParams)
 	return 0;
 }
 
+public int NativeCall_VehicleHealthGet(Handle plugin, int numParams)
+{
+	int vehicle = GetNativeCell(1);
+
+	if (!IsEntityVehicle(vehicle))
+		ThrowNativeError(SP_ERROR_NATIVE, "Entity %d is not a vehicle", vehicle);
+
+	return view_as<int>(Vehicle(vehicle).Health);
+}
+
+public int NativeCall_VehicleShooterGet(Handle plugin, int numParams)
+{
+	int vehicle = GetNativeCell(1);
+
+	if (!IsEntityVehicle(vehicle))
+		ThrowNativeError(SP_ERROR_NATIVE, "Entity %d is not a vehicle", vehicle);
+
+	return Vehicle(vehicle).Shooter;
+}
+
 //-----------------------------------------------------------------------------
 // Miscellaneous Callbacks
 //-----------------------------------------------------------------------------
@@ -2429,6 +2451,9 @@ void RequestFrameCallback_LeaveVehicle(int exDriver)
 	int vehicle = Player(exDriver).VehicleIsInAsDriver;
 
 	Player(exDriver).VehicleIsInAsDriver = -1;
+
+	if (vehicle == -1 || !IsValidEntity(vehicle))
+		return;
 
 	if (Vehicle(vehicle).DummyDriver != -1)
 	{
@@ -2997,20 +3022,17 @@ public void SDKHookCB_PropVehicleDriveable_OnTakeDamagePost(int victim, int atta
 		{
 			float maxHealth = vehicle_health.FloatValue;
 
-			if (Vehicle(victim).Health <= maxHealth * 0.25)
-			{
-				int displayHealth = RoundToNearest(Vehicle(victim).Health);
-				if (displayHealth < 0)
-					displayHealth = 0;
+			int displayHealth = RoundToNearest(Vehicle(victim).Health);
+			if (displayHealth < 0)
+				displayHealth = 0;
 
-				int driver = GetEntPropEnt(victim, Prop_Data, "m_hPlayer");
-				if (driver != -1)
-					PrintCenterText(driver, "Vehicle: %d HP", displayHealth);
+			int driver = GetEntPropEnt(victim, Prop_Data, "m_hPlayer");
+			if (driver != -1)
+				PrintCenterText(driver, "Vehicle: %d HP", displayHealth);
 
-				int shooter = Vehicle(victim).Shooter;
-				if (shooter != -1)
-					PrintCenterText(shooter, "Vehicle: %d HP", displayHealth);
-			}
+			int shooter = Vehicle(victim).Shooter;
+			if (shooter != -1)
+				PrintCenterText(shooter, "Vehicle: %d HP", displayHealth);
 
 			if (Vehicle(victim).Health <= maxHealth * 0.25 && Vehicle(victim).FireEffect == -1)
 				SpawnFireForVehicle(victim);
