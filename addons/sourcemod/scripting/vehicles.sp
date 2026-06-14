@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 DNA.styx-fork-0.2.05" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 DNA.styx-fork-0.2.08" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus, Claude.ai guided by DNA.styx"
 #define PLUGIN_URL		"https://github.com/DNA-styx/source-vehicles"
 
@@ -68,6 +68,7 @@ ConVar vehicle_physics_damage_modifier;
 ConVar vehicle_passenger_damage_modifier;
 ConVar vehicle_enable_entry_exit_anims;
 ConVar vehicle_enable_horns;
+ConVar vehicle_health;
 
 DynamicHook g_DHookShouldCollide;
 DynamicHook g_DHookSetPassenger;
@@ -816,6 +817,7 @@ public void OnPluginStart()
 	vehicle_passenger_damage_modifier = CreateConVar("vehicle_passenger_damage_modifier", "1.0", "Modifier of damage dealt to vehicle passengers.", _, true, 0.0);
 	vehicle_enable_entry_exit_anims = CreateConVar("vehicle_enable_entry_exit_anims", "0", "If set to 1, enables entry and exit animations.");
 	vehicle_enable_horns = CreateConVar("vehicle_enable_horns", "1", "If set to 1, enables vehicle horns.");
+	vehicle_health = CreateConVar("vehicle_health", "100.0", "Starting health for all vehicles.", _, true, 1.0);
 	
 	RegAdminCmd("sm_vehicle", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC, "Open vehicle menu");
 	RegAdminCmd("sm_vehicle_create", ConCmd_CreateVehicle, ADMFLAG_GENERIC, "Create new vehicle");
@@ -2682,12 +2684,21 @@ public void EventHook_PreRoundRestart(Event event, const char[] name, bool dontB
 public Action SDKHookCB_Client_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype)
 {	
 	Action returnValue = Plugin_Continue;
-	
+
 	// Player got damaged inside vehicle
-	if (IsEntityClient(attacker) && (IsInAVehicle(victim) || Player(victim).VehicleIsInAsShooter != -1) && attacker != victim)
+	if (IsInAVehicle(victim) || Player(victim).VehicleIsInAsShooter != -1)
 	{
-		damage *= vehicle_passenger_damage_modifier.FloatValue;
-		returnValue = Plugin_Changed;
+		if (GetEngineVersion() == Engine_DODS)
+		{
+			// In DoDS occupants are fully protected — vehicle takes all damage
+			damage = 0.0;
+			return Plugin_Changed;
+		}
+		else if (IsEntityClient(attacker) && attacker != victim)
+		{
+			damage *= vehicle_passenger_damage_modifier.FloatValue;
+			returnValue = Plugin_Changed;
+		}
 	}
 	
 	// Player got hit by a vehicle. In games like DoDS this doesn't happen; for them we have the DamageDealer entity parented to every vehicle.
@@ -2891,7 +2902,7 @@ public void SDKHookCB_PropVehicleDriveable_SpawnPost(int vehicle)
 		SpawnDamageDealerForVehicle(vehicle, config);
 		SpawnPusherForVehicle(vehicle);
 		SpawnExplosiveForVehicle(vehicle);
-		Vehicle(vehicle).Health = 100.0;
+		Vehicle(vehicle).Health = vehicle_health.FloatValue;
 	}
 }
 
@@ -2903,9 +2914,10 @@ public Action SDKHookCB_DummyDriver_OnTakeDamage(int entity, int &attacker, int 
 	{
 		if (IsEntityVehicle(parent))
 		{
-			int driver = GetEntPropEnt(parent, Prop_Send, "m_hPlayer");
-			if (driver != -1)
-				SDKHooks_TakeDamage(driver, inflictor, attacker, damage, damagetype, weapon, damageForce, NULL_VECTOR, true);
+			// Route hits on the dummy driver to the vehicle instead of the player.
+			// Zero the force vector and set DMG_PREVENT_PHYSICS_FORCE to prevent the vehicle being pushed.
+			float noForce[3];
+			SDKHooks_TakeDamage(parent, inflictor, attacker, damage, damagetype | DMG_PREVENT_PHYSICS_FORCE, weapon, noForce, NULL_VECTOR, true);
 		}
 	}
 	
