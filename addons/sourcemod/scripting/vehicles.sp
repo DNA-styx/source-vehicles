@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 DNA.styx-fork-0.2.04" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 DNA.styx-fork-0.2.05" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus, Claude.ai guided by DNA.styx"
 #define PLUGIN_URL		"https://github.com/DNA-styx/source-vehicles"
 
@@ -2839,6 +2839,20 @@ public void SDKHookCB_PropVehicleDriveable_OnTakeDamagePost(int victim, int atta
 
 				CreateTimer(15.0, Timer_VehicleRespawner, victim, TIMER_FLAG_NO_MAPCHANGE);
 			}
+		}
+		else if (GetEngineVersion() == Engine_DODS)
+		{
+			int displayHealth = RoundToNearest(Vehicle(victim).Health);
+			if (displayHealth < 0)
+				displayHealth = 0;
+
+			int driver = GetEntPropEnt(victim, Prop_Data, "m_hPlayer");
+			if (driver != -1)
+				PrintCenterText(driver, "Vehicle: %d HP", displayHealth);
+
+			int shooter = Vehicle(victim).Shooter;
+			if (shooter != -1)
+				PrintCenterText(shooter, "Vehicle: %d HP", displayHealth);
 		}
 	}
 }
