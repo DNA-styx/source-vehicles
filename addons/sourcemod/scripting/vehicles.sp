@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 DNA.styx-fork-0.2.33" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 DNA.styx-fork-0.2.35" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus, Claude.ai guided by DNA.styx"
 #define PLUGIN_URL		"https://github.com/DNA-styx/source-vehicles"
 
@@ -879,6 +879,17 @@ public void OnPluginStart()
 		AddNormalSoundHook(SoundHook_TrackBuggedVehicleSounds);
 		CreateTimer(2.0, Timer_FixVehiclesBuggedSounds, _, TIMER_REPEAT);
 		CreateTimer(5.0, Timer_VehicleHealthDisplay, _, TIMER_REPEAT);
+
+		// DoD:S clients lose their KeyHintText client hook after a player/bot kill (known DoD:S
+		// engine bug) and never regain it for that life. The resulting undeliverable message
+		// corrupts the temp-entity stream, causing unrelated effects (e.g. grenade explosions) to
+		// render as checkerboard placeholders. Block KeyHintText outright on DoD:S; nothing is lost
+		// since the client can't render it reliably anyway.
+		UserMsg msgKeyHintText = GetUserMessageId("KeyHintText");
+		if (msgKeyHintText != INVALID_MESSAGE_ID)
+			HookUserMessage(msgKeyHintText, Hook_BlockKeyHintText, true);
+		else
+			LogError("KeyHintText user message id not found; KeyHintText dispatch-failure workaround not installed.");
 	}
 
 	GameData gamedata = new GameData("vehicles");
@@ -1319,6 +1330,15 @@ void PrintKeyHintText(int client, const char[] format, any...)
 	bf.WriteByte(1);	// One message
 	bf.WriteString(buffer);
 	EndMessage();
+}
+
+// Intercept hook (DoD:S only, see OnPluginStart) - blocks KeyHintText from ever being sent to the
+// client, since DoD:S clients reliably fail to dispatch it (engine bug, not specific to this
+// plugin's own key_hint config) and the undeliverable message corrupts unrelated temp-entity
+// network traffic.
+public Action Hook_BlockKeyHintText(UserMsg msg_id, BfRead msg, const int[] players, int playersNum, bool reliable, bool init)
+{
+	return Plugin_Handled;
 }
 
 void V_swap(int &x, int &y)
