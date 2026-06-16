@@ -1,10 +1,10 @@
 /**
- * vehicle_inspector.sp
+ * vehicles_status.sp
  * Displays vehicle health and occupants via PrintCenterText when a player
  * outside a vehicle looks at one.
  *
  * Author: claude.ai guided by DNA.styx
- * Version: 1.0.0
+ * Version: 1.0.2
  *
  * Requires: vehicles plugin (vehicles.smx)
  */
@@ -19,17 +19,17 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION          "1.0.0"
+#define PLUGIN_VERSION          "1.0.2"
 #define VEHICLE_CLASSNAME       "prop_vehicle_driveable"
 #define VEHICLE_MAX_LOOK_DIST   500.0
 
 public Plugin myinfo =
 {
-	name        = "Vehicle Inspector",
+	name        = "Vehicles Status",
 	author      = "claude.ai guided by DNA.styx",
 	description = "Shows vehicle HP and occupants when looking at a vehicle.",
 	version     = PLUGIN_VERSION,
-	url         = ""
+	url         = "https://github.com/DNA-styx/source-vehicles"
 };
 
 //-----------------------------------------------------------------------------
@@ -41,7 +41,7 @@ public void OnPluginStart()
 	CreateConVar("sm_vehicle_inspector_version", PLUGIN_VERSION,
 		"Vehicle Inspector version", FCVAR_SPONLY | FCVAR_NOTIFY);
 
-	CreateTimer(0.2, Timer_VehicleInspect, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(0.2, Timer_VehicleInspect, _, TIMER_REPEAT);
 }
 
 //-----------------------------------------------------------------------------
@@ -82,18 +82,13 @@ public Action Timer_VehicleInspect(Handle timer)
 
 void DisplayVehicleInfo(int client, int vehicle)
 {
-	// Vehicle ID as display name
-	char vehicleId[256];
-	if (!Vehicle(vehicle).GetId(vehicleId, sizeof(vehicleId)))
-		vehicleId = "vehicle";
-
 	float health    = Vehicle(vehicle).Health;
 	int   driver    = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
 	int   shooter   = Vehicle(vehicle).Shooter;
 
-	// Line 1: name and HP
+	// Line 1: HP
 	char display[512];
-	Format(display, sizeof(display), "[%s] HP: %d", vehicleId, RoundToFloor(health));
+	Format(display, sizeof(display), "HP: %d", RoundToFloor(health));
 
 	// Line 2: driver (skip if seat empty)
 	if (driver > 0 && driver <= MaxClients && IsClientInGame(driver))
