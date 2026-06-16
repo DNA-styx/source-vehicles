@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 DNA.styx-fork-0.2.35" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 DNA.styx-fork-0.2.36" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus, Claude.ai guided by DNA.styx"
 #define PLUGIN_URL		"https://github.com/DNA-styx/source-vehicles"
 
@@ -590,7 +590,12 @@ methodmap Vehicle
 		public set(float value)
 		{
 			if (this._listIndex != -1)
+			{
+				if (value < 0.0)
+					value = 0.0;
+				
 				g_VehicleProperties.Set(this._listIndex, value, VehicleProperties::health);
+			}
 		}
 	}
 
