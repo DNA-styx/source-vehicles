@@ -29,7 +29,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.2 DNA.styx-fork-0.2.29" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
+#define PLUGIN_VERSION	"2.4.2 DNA.styx-fork-0.2.33" //This plugin is a work derived from the version 2.4.2 of the original one made by Mikusch.
 #define PLUGIN_AUTHOR	"Mikusch and Prof. Orribilus, Claude.ai guided by DNA.styx"
 #define PLUGIN_URL		"https://github.com/DNA-styx/source-vehicles"
 
@@ -2455,6 +2455,24 @@ void RequestFrameCallback_LeaveVehicle(int exDriver)
 	if (vehicle == -1 || !IsValidEntity(vehicle))
 		return;
 
+	// Stop any looping ATV sounds attributed to this player in DoDS.
+	// EmitSoundToAll with SND_STOP handles server-initiated sounds.
+	// ClientCommand stopsound handles locally-initiated client-side sounds.
+	if (GetEngineVersion() == Engine_DODS)
+	{
+		int channel, x; float y; int z;
+		char sample[PLATFORM_MAX_PATH];
+
+		for (int i = 0; i < sizeof(g_BuggedVehicleGameSounds); i++)
+		{
+			GetGameSoundParams(g_BuggedVehicleGameSounds[i], channel, x, y, z, sample, sizeof(sample));
+			EmitSoundToAll(sample, exDriver, channel, _, SND_STOP | SND_STOPLOOPING);
+		}
+
+		if (IsClientInGame(exDriver))
+			ClientCommand(exDriver, "stopsound");
+	}
+
 	if (Vehicle(vehicle).DummyDriver != -1)
 	{
 		AcceptEntityInput(Vehicle(vehicle).DummyDriver, "ClearParent");
@@ -3244,9 +3262,11 @@ public void SDKHookCB_VehicleDamageDealer_TouchPost(int entity, int other)
 
 public Action SoundHook_TrackBuggedVehicleSounds(int clients[MAXPLAYERS], int &numClients, char sample[PLATFORM_MAX_PATH], int &entity, int &channel, float &volume, int &level, int &pitch, int &flags, char soundEntry[PLATFORM_MAX_PATH], int &seed)
 {
-	// Attempt to fix vehicle looping sounds erroneously emitted from players
+	// Block ATV sounds emitted from client entities — these are erroneously attributed
+	// to player entities by DoDS instead of the vehicle entity. Allow stop commands
+	// through so the engine can clear sounds that were previously playing.
 	bool IsBuggedSound = FilterBuggedVehicleSound(sample);
-	if (IsEntityClient(entity) && IsBuggedSound)
+	if (IsEntityClient(entity) && IsBuggedSound && !(flags & SND_STOP))
 		return Plugin_Handled;
 
 	/*
